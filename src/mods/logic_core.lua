@@ -10,12 +10,7 @@ internal.godInfo = internal.godInfo or {}
 local godInfo = internal.godInfo
 
 -- Local Helpers
-local band, lshift, rshift, bor, bnot = bit32.band, bit32.lshift, bit32.rshift, bit32.bor, bit32.bnot
-local t_insert = table.insert
-
-local function GetRunState()
-    return internal.GetRunState()
-end
+local band = bit32.band
 
 local function IsBanManagerActive()
     return lib.isEnabled(config, internal.definition.modpack)
@@ -37,28 +32,6 @@ local function ShuffleTable(t)
         t[i], t[j] = t[j], t[i]
     end
     return t
-end
-
-local function GetOccupiedSlots()
-    local occupied = {}
-    if CurrentRun and CurrentRun.Hero and CurrentRun.Hero.Traits then
-        for _, trait in pairs(CurrentRun.Hero.Traits) do
-            if trait.Slot then 
-                occupied[trait.Slot] = true 
-            end
-        end
-    end
-
-    if config.DebugMode then
-        local slots = {"Melee", "Secondary", "Ranged", "Rush", "Mana"} -- Standard Slots
-        local occupiedList = {}
-        for _, slot in ipairs(slots) do
-            if occupied[slot] then table.insert(occupiedList, slot) end
-        end
-        Log("[Micro] Occupied Slots: %s", table.concat(occupiedList, ", "))
-    end
-
-    return occupied
 end
 
 -- Generator now accepts 'priorityList' (string array of Boon Names)
@@ -208,20 +181,18 @@ modutil.mod.Path.Wrap("GetEligibleUpgrades", function(base, upgradeOptions, loot
     local count = currentRunPicks[currentGodKey] or 0
     local targetTier = count + 1
 
-    if config.DebugMode then
-        Log("[Micro] Inspecting Loot: %s (God: %s, Tier: %d)", lootData.Name, tostring(currentGodKey), targetTier)
-    end
+    Log("[Micro] Inspecting Loot: %s (God: %s, Tier: %d)", lootData.Name, tostring(currentGodKey), targetTier)
+
 
     if currentGodKey then
         local metaKey = (targetTier == 1) and currentGodKey or (currentGodKey .. tostring(targetTier))
         if not godMeta[metaKey] then
-             if config.DebugMode then
-                Log("[Micro] Early exit for %s (Tier %d not configured)", tostring(currentGodKey), targetTier)
-             end
+            Log("[Micro] Early exit for %s (Tier %d not configured)", tostring(currentGodKey), targetTier)
+
              return base(upgradeOptions, lootData, upgradeChoiceData)
         end
     end
-    
+
     skipIsTraitEligible = true
     local fullList = base(upgradeOptions, lootData, upgradeChoiceData) or {}
     skipIsTraitEligible = false
@@ -248,9 +219,8 @@ modutil.mod.Path.Wrap("GetEligibleUpgrades", function(base, upgradeOptions, loot
         end
     end
 
-    if config.DebugMode then
-        Log("[Micro] Loot Result: Passed %d, Banned %d", #allowed, #banned)
-    end
+    Log("[Micro] Loot Result: Passed %d, Banned %d", #allowed, #banned)
+
 
     if #allowed == 0 then return fullList end
 
@@ -281,7 +251,7 @@ modutil.mod.Path.Wrap("SetTraitsOnLoot", function(base, lootData, args)
     local restoreChance = nil
     if IsBanManagerActive() and CurrentRun.Hero.BoonData then
         restoreChance = CurrentRun.Hero.BoonData.ReplaceChance
-        CurrentRun.Hero.BoonData.ReplaceChance = 0.0 
+        CurrentRun.Hero.BoonData.ReplaceChance = 0.0
     end
 
     base(lootData, args)
@@ -293,32 +263,32 @@ modutil.mod.Path.Wrap("SetTraitsOnLoot", function(base, lootData, args)
     if not IsBanManagerActive() then return end
 
     -- 1. FORCE RARITY: Upgrade the rarity of specific traits based on config (if they are present in the loot).
-    if config.DebugMode then
-        Log("[Micro] Applying forced Epic rarity to specific traits (if present in loot).")
-    end
+
+    Log("[Micro] Applying forced Epic rarity to specific traits (if present in loot).")
+
     --Keep this code block. It does rarity forcing and ignores tiers for rarity. The next block respects tiers.
     -- for _, item in ipairs(lootData.UpgradeOptions) do
     --     local name = item.ItemName or item.Name
-        
+
     --     -- Safe to use nil because base boons are unambiguously tied to one god
     --     local info = internal.FindTraitInfo(name, nil)
-        
+
     --     if info and info.god then
     --         local rootKey = internal.GetRootKey(info.god)
-            
+
     --         -- Check if this Olympian supports Rarity Config
     --         if godMeta[rootKey] and godMeta[rootKey].rarityVar then
-                
+
     --             -- Directly check the rarity value, ignoring tier and ban status
     --             local rVal = internal.GetRarityValue(rootKey, info.bit)
     --             if rVal > 0 then
     --                 local rarityMap = { [1]="Common", [2]="Rare", [3]="Epic" }
     --                 local targetRarity = rarityMap[rVal]
-                    
+
     --                 if targetRarity then
     --                     item.Rarity = targetRarity
-    --                     item.ForceRarity = true 
-                        
+    --                     item.ForceRarity = true
+
     --                     if config.DebugMode then
     --                         print(string.format("RunDirector: [Rarity] Forced %s on %s", targetRarity, name))
     --                     end
@@ -338,23 +308,23 @@ modutil.mod.Path.Wrap("SetTraitsOnLoot", function(base, lootData, args)
 
     for _, item in ipairs(lootData.UpgradeOptions) do
         local name = item.ItemName or item.Name
-        
+
         -- Safe to use nil because base boons are unambiguously tied to one god
         local info = internal.FindTraitInfo(name, nil)
-        
+
         if info and info.god then
             local rootKey = internal.GetRootKey(info.god)
-            
+
             -- Check if this Olympian supports Rarity Config
             if godMeta[rootKey] and godMeta[rootKey].rarityVar then
-                
+
                 -- Construct the tier-specific key to check the correct ban list
                 local tierKey = rootKey
                 if currentGodKey == rootKey and targetTier > 1 then
                     tierKey = rootKey .. tostring(targetTier)
                 end
-                
-                local banConfig = internal.GetBanConfig(tierKey) 
+
+                local banConfig = internal.GetBanConfig(tierKey)
                 local isBanned = band(banConfig, info.mask) ~= 0
 
                 -- Only apply rarity if the boon is ALLOWED in this tier
@@ -363,14 +333,13 @@ modutil.mod.Path.Wrap("SetTraitsOnLoot", function(base, lootData, args)
                     if rVal > 0 then
                         local rarityMap = { [1]="Common", [2]="Rare", [3]="Epic" }
                         local targetRarity = rarityMap[rVal]
-                        
+
                         if targetRarity then
                             item.Rarity = targetRarity
-                            item.ForceRarity = true 
-                            
-                            if config.DebugMode then
-                                Log("[Rarity] Forced %s on %s", targetRarity, name)
-                            end
+                            item.ForceRarity = true
+
+                            Log("[Rarity] Forced %s on %s", targetRarity, name)
+
                         end
                     end
                 end
@@ -381,9 +350,9 @@ modutil.mod.Path.Wrap("SetTraitsOnLoot", function(base, lootData, args)
     -- 2. GET THE ORDERS: Retrieve the Strict Queue
     local priorityQueue = CurrentRun._banManager_DuoLegendaryQueue
 
-    if not priorityQueue or #priorityQueue == 0 then 
+    if not priorityQueue or #priorityQueue == 0 then
         CurrentRun._banManager_DuoLegendaryQueue = nil -- Clean up
-        return 
+        return
     end
 
     -- 3. ANALYZE THE DRAFT
@@ -400,11 +369,11 @@ modutil.mod.Path.Wrap("SetTraitsOnLoot", function(base, lootData, args)
 
     for i = 1, slotsToEnforce do
         local queueItem = priorityQueue[i]
-        
+
         -- We only intervene for "Forced" items (Duos / Legendaries) that are MISSING.
         -- Normal items are allowed to be skipped by RNG (that's the "Fairness").
         if not existingItems[queueItem.ItemName] then
-            
+
             -- We need to insert this item.
             -- Strategy: Overwrite the last slot (Slot 3), unless we have empty space.
             local targetSlot = #lootData.UpgradeOptions
@@ -414,7 +383,7 @@ modutil.mod.Path.Wrap("SetTraitsOnLoot", function(base, lootData, args)
 
             -- If we are overwriting, try not to overwrite another Forced item (rare edge case)
             -- But usually, Slot 3 is fair game.
-            
+
             -- Construct the forced option
             local newOption = {
                 ItemName = queueItem.ItemName,
@@ -422,16 +391,15 @@ modutil.mod.Path.Wrap("SetTraitsOnLoot", function(base, lootData, args)
                 Rarity = queueItem.rarity, -- "Duo" or "Legendary"
                 ForceRarity = true -- Helper flag
             }
-            
+
             -- INJECT IT
             lootData.UpgradeOptions[targetSlot] = newOption
-            
+
             -- Update map so we don't try to add it twice
             existingItems[queueItem.ItemName] = targetSlot
-            
-            if config.DebugMode then
-                Log("[Micro] Forced missing item '%s' into Slot %d", queueItem.ItemName, targetSlot)
-            end
+
+            Log("[Micro] Forced missing item '%s' into Slot %d", queueItem.ItemName, targetSlot)
+
         end
     end
 
@@ -443,7 +411,7 @@ end)
 
 modutil.mod.Path.Wrap("IsTraitEligible", function(base, traitData, args)
     if not IsBanManagerActive() or skipIsTraitEligible  then return base(traitData, args) end
-    
+
     local info = internal.FindTraitInfo(traitData.Name, nil)
     if info then
         -- Handle Keepsake context (Hades vs HadesKeepsake logic)
@@ -456,11 +424,10 @@ modutil.mod.Path.Wrap("IsTraitEligible", function(base, traitData, args)
              end
         end
 
-        if band(internal.GetBanConfig(info.god), info.mask) ~= 0 then 
-            if config.DebugMode then
-                Log("[Micro] IsTraitEligible BLOCKED: %s", traitData.Name)
-            end
-            return false 
+        if band(internal.GetBanConfig(info.god), info.mask) ~= 0 then
+            Log("[Micro] IsTraitEligible BLOCKED: %s", traitData.Name)
+
+            return false
         end
     end
     return base(traitData, args)

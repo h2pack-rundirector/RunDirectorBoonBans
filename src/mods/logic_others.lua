@@ -11,7 +11,7 @@ internal.godInfo = internal.godInfo or {}
 local godInfo = internal.godInfo
 
 -- Local Helpers
-local band, lshift, rshift, bor, bnot = bit32.band, bit32.lshift, bit32.rshift, bit32.bor, bit32.bnot
+local band, lshift = bit32.band, bit32.lshift
 local t_insert = table.insert
 
 
@@ -46,69 +46,6 @@ local function GetSourceColor(name)
     return { inGameColor[1] / 255, inGameColor[2] / 255, inGameColor[3] / 255, inGameColor[4] / 255 }
 end
 
--- Calculates the banned count and total count for a single god.
-local function UpdateGodStats(godKey)
-    local entry = godInfo[godKey]
-    if not entry or not entry.boons then return end
-
-    local godConfig = internal.GetBanConfig(godKey)
-    local count = 0
-    
-    for _, boon in ipairs(entry.boons) do
-        if band(godConfig, boon.Mask) ~= 0 then
-            count = count + 1
-        end
-    end
-    
-    entry.banned = count
-    entry.total = #entry.boons
-    entry.banLabel = string.format("(%d/%d Banned)", count, #entry.boons)
-end
---------------------------------------------------------------------------------
--- BAN MANAGEMENT API (UI Wrappers)
---------------------------------------------------------------------------------
-
-local function ResetGodBans(god)
-    if godMeta[god] and godInfo[god] then
-        -- Use Utils to safely clear bans without touching Pool Flag (Bit 31)
-        internal.SetBanConfig(god, 0)
-        godInfo[god].banned = 0
-        
-        if config.DebugMode then
-            Log("[Micro] Reset bans for %s", god)
-        end
-    end
-end
-
-local function BanAllGodBans(god)
-    local meta = godMeta[god]
-    if meta and meta.packedConfig and godInfo[god] then
-        -- Create a mask of 1s for the size of bits (e.g. 22 bits = 0x3FFFFF)
-        local mask = lshift(1, meta.packedConfig.bits) - 1
-        internal.SetBanConfig(god, mask)
-        godInfo[god].banned = godInfo[god].total
-        
-        if config.DebugMode then
-            Log("[Micro] Banned ALL for %s", god)
-        end
-    end
-end
-
-local function ResetAllBans()
-    for god, _ in pairs(godInfo) do ResetGodBans(god) end
-    if config.DebugMode then
-        Log("[Micro] Global Ban Reset triggered.")
-    end
-end
-
-local function RecalculateBannedCounts()
-    for godKey, _ in pairs(godInfo) do
-        UpdateGodStats(godKey)
-    end
-    if config.DebugMode then
-        Log("[Micro] Recalculated all ban counts.")
-    end
-end
 --------------------------------------------------------------------------------
 -- POPULATE GOD INFO (Runtime Data Generation)
 --------------------------------------------------------------------------------
@@ -127,17 +64,17 @@ local function PopulateGodInfo()
 
         local bitMask = lshift(1, index)
         local displayName = overrideDisplayName or (traitData and game.GetDisplayName({ Text = boonKey })) or boonKey
-        
-        local boon = { 
-            Key = boonKey, God = godKey, Bit = index, Mask = bitMask, 
-            Name = displayName, Rarity = rarity 
+
+        local boon = {
+            Key = boonKey, God = godKey, Bit = index, Mask = bitMask,
+            Name = displayName, Rarity = rarity
         }
-        
+
         godInfo[godKey].boons = godInfo[godKey].boons or {}
         t_insert(godInfo[godKey].boons, boon)
 
         local entry = { god = godKey, bit = index, mask = bitMask }
-        
+
         if not godInfo.traitLookup[boonKey] then
             godInfo.traitLookup[boonKey] = { entry }
         else
@@ -154,7 +91,7 @@ local function PopulateGodInfo()
 
         if not meta.duplicateOf and meta.lootSource then
             local src = meta.lootSource
-            
+
             if src.type == "LootSet" then
                 local lootData = LootSetData[meta.key]
                 if lootData and lootData[src.key] then
@@ -201,7 +138,7 @@ local function PopulateGodInfo()
                  if LootSetData.Loot and LootSetData.Loot.WeaponUpgrade and LootSetData.Loot.WeaponUpgrade.Traits then
                     local daedalusTraits = LootSetData.Loot.WeaponUpgrade.Traits
                     local prefixes = meta.prefixes or { key }
-                    
+
                     local currentIndex = 0
                     for _, trait in ipairs(daedalusTraits) do
                         local match = false
@@ -231,7 +168,7 @@ local function PopulateGodInfo()
                             end
                         end
                     end
-                    
+
                     -- [NEW] FALLBACK ALPHABETICAL
                     -- Catch any keys (like Shrine Upgrades) that aren't in the layout
                     local remaining = {}
@@ -241,14 +178,13 @@ local function PopulateGodInfo()
                         end
                     end
                     table.sort(remaining)
-                    
+
                     for _, k in ipairs(remaining) do
                         t_insert(sortedKeys, k)
                     end
 
                     local index = 0
                     for _, upgradeName in ipairs(sortedKeys) do
-                        local data = dataSource[upgradeName]
                         local isValid = true
                         if isValid and src.exclude and src.exclude[upgradeName] then
                             isValid = false
@@ -261,7 +197,7 @@ local function PopulateGodInfo()
                     end
                 end
             end
-            UpdateGodStats(key)
+            internal.UpdateGodStats(key)
         end
     end
 
@@ -270,20 +206,18 @@ local function PopulateGodInfo()
         if meta.duplicateOf then
             local parentKey = meta.duplicateOf
             local parentEntry = godInfo[parentKey]
-            
+
             if parentEntry then
                 -- godInfo[key] initialized at top of loop
                 for _, parentBoon in ipairs(parentEntry.boons) do
                     addBoonToRuntime(key, parentBoon.Key, parentBoon.Bit, parentBoon.Name)
                 end
-                UpdateGodStats(key)
+                internal.UpdateGodStats(key)
             end
         end
     end
 
-    if config.DebugMode then
-        Log("[Micro] GodInfo Populated.")
-    end
+    Log("[Micro] GodInfo Populated.")
 end
 
 --------------------------------------------------------------------------------
@@ -333,7 +267,7 @@ function internal.FindTraitInfo(traitName, filterGodKey, knownTier)
 
     -- 2. Determine Tier (THE OPTIMIZATION)
     local targetTier = knownTier
-    
+
     if not targetTier then
         -- Only calculate if we weren't told the Tier
         local rootKey = GetRootKey(targetEntry.god)
@@ -347,7 +281,7 @@ function internal.FindTraitInfo(traitName, filterGodKey, knownTier)
         local entry = list[i]
         local meta = godMeta[entry.god]
         local entryTier = meta.tier or 1
-        
+
         -- Note: We use the entry's own god root for comparison logic if needed,
         -- but usually we just match the tier requirement.
         if entryTier == targetTier then
@@ -438,7 +372,7 @@ local function wrapNPCChoice(funcName)
 
         if IsBanManagerActive() and args.UpgradeOptions then
             local allowed, banned = {}, {}
-            local configCache = {} 
+            local configCache = {}
 
             for _, option in ipairs(args.UpgradeOptions) do
                 if option.GameStateRequirements == nil or IsGameStateEligible(source, option.GameStateRequirements) then
@@ -454,14 +388,14 @@ local function wrapNPCChoice(funcName)
                     else t_insert(banned, option) end
                 end
             end
-			
+
             if #allowed > 0 and (config.EnablePadding or funcName == "CirceBlessingChoice") then
                 if #allowed < GetTotalLootChoices() then
                     local pool = {}
                     for _, b in ipairs(banned) do t_insert(pool, b) end
                     local seen = {}
                     for _, a in ipairs(allowed) do seen[a.ItemName] = true end
-                    
+
                     while #allowed < GetTotalLootChoices() and #pool > 0 do
                         local idx = math.random(1, #pool)
                         local pick = pool[idx]
@@ -476,8 +410,8 @@ local function wrapNPCChoice(funcName)
             elseif #allowed > 0 then
                  args.UpgradeOptions = allowed
             end
-            
-            if config.DebugMode and #banned > 0 then
+
+            if #banned > 0 then
                 Log("[Micro] NPC Choice (%s): Allowed %d, Banned %d", funcName, #allowed, #banned)
             end
         end
@@ -500,14 +434,12 @@ modutil.mod.Path.Wrap("GetEligibleSpells", function(base, screen, args)
             configCache[info.god] = cfg
             if band(cfg, info.mask) ~= 0 then isBanned = true end
         end
-        
+
         if not isBanned then t_insert(allowed, spellName)
         else t_insert(banned, spellName) end
     end
-    
-    if config.DebugMode then
-        Log("[Micro] GetEligibleSpells: Allowed %d, Banned %d", #allowed, #banned)
-    end
+
+    Log("[Micro] GetEligibleSpells: Allowed %d, Banned %d", #allowed, #banned)
 
     if #allowed == 0 then return eligible end
 
@@ -555,30 +487,26 @@ modutil.mod.Path.Wrap("AddTraitToHero", function(base, args)
     local result = base(args)
     local traitData = args.TraitData
     local state = GetRunState()
-    
+
     if IsBanManagerActive() and traitData then
         internal.GetOrRecalcBoonCounts()
         local godKey = internal.ActiveGodKey
-        if config.DebugMode then
-            Log("[Micro] AddTraitToHero: Found godKey %s from (trait: %s)", godKey, traitData.Name)
-        end
+        Log("[Micro] AddTraitToHero: Found godKey %s from (trait: %s)", godKey, traitData.Name)
         if not godKey then
             local info = internal.FindTraitInfo(traitData.Name, nil)
             if info then godKey = GetRootKey(info.god) end
         end
-        local TraitUpgrade = args.SkipSetup or args.SkipActivatedTraitUpdate or args.SkipNewTraitHighlight 
+        local TraitUpgrade = args.SkipSetup or args.SkipActivatedTraitUpdate or args.SkipNewTraitHighlight
 
         if godKey and state.BoonPickCounts then
             if not TraitUpgrade then
                 state.BoonPickCounts[godKey] = (state.BoonPickCounts[godKey] or 0) + 1
-                if config.DebugMode then
-                    Log("[Micro] AddTraitToHero: %s. God: %s. New Count: %d", traitData.Name, tostring(godKey), state.BoonPickCounts[godKey])
-                end
+                Log("[Micro] AddTraitToHero: %s. God: %s. New Count: %d", traitData.Name, tostring(godKey), state.BoonPickCounts[godKey])
             end
         end
         internal.ActiveGodKey = nil
     end
-    
+
     if IsBanManagerActive() and traitData then
         if CurrentRun and state.ImproveFirstNBoonRarity and IsGodTrait(traitData.Name) then
             state.ImproveFirstNBoonRarity = math.max(0, state.ImproveFirstNBoonRarity - 1)
@@ -624,14 +552,9 @@ end)
 PopulateGodInfo()
 
 local npcFunctions = {
-    "ArachneCostumeChoice", "NarcissusBenefitChoice", "EchoChoice", 
+    "ArachneCostumeChoice", "NarcissusBenefitChoice", "EchoChoice",
     "MedeaCurseChoice", "CirceBlessingChoice", "IcarusBenefitChoice"
 }
 for _, func in ipairs(npcFunctions) do wrapNPCChoice(func) end
 
--- EXPORTS
-internal.ResetGodBans = ResetGodBans
-internal.BanAllGodBans = BanAllGodBans
-internal.ResetAllBans = ResetAllBans
 internal.GetRootKey = GetRootKey
-internal.RecalculateBannedCounts = RecalculateBannedCounts

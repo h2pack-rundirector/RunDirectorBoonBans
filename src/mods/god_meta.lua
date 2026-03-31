@@ -30,15 +30,15 @@ local MAX_HERMES_TIERS = 2
 -- =============================================================================
 
 local function GetBitCount(source, defaultPrefix)
-    if not source then return 8 end 
+    if not source then return 8 end
     local count = 0
 
     if source.type == "LootSet" then
         -- Step 1: Try to find the God's table first (e.g., LootSetData["Apollo"])
         -- The files show LootSetData.Apollo exists, and ApolloUpgrade is inside it.
         local container = LootSetData[defaultPrefix]
-        local data = nil
-        
+        local data
+
         if container and container[source.key] then
             data = container[source.key] -- Found: LootSetData.Apollo.ApolloUpgrade
         else
@@ -49,7 +49,7 @@ local function GetBitCount(source, defaultPrefix)
         if data then
             if data.WeaponUpgrades then count = count + #data.WeaponUpgrades end
             if data.Traits then count = count + #data.Traits end
-            
+
             -- Handle SubKeys (like Chaos PermanentTraits/TemporaryTraits)
             if source.subKey and data[source.subKey] then
                 count = count + #data[source.subKey]
@@ -92,7 +92,7 @@ local function GetBitCount(source, defaultPrefix)
                 if isValid then count = count + 1 end
             end
         end
-    
+
     elseif source.type == "Keepsake" then
         if source.key == "HadesKeepsake" then
             local unit = UnitSetData["NPC_Hades"]
@@ -103,12 +103,10 @@ local function GetBitCount(source, defaultPrefix)
     end
 
     -- DEBUG: Keep this to verify the fix in the console!
-    if config.DebugMode then
-        Log("BitCheck: %-12s | Type: %-13s | Count: %d",
-            defaultPrefix or "??",
-            source.type,
-            count)
-    end
+    Log("BitCheck: %-12s | Type: %-13s | Count: %d",
+        defaultPrefix or "??",
+        source.type,
+        count)
 
     -- Safety: Ensure we never return 0 bits, or the mask logic will break
     return count > 0 and count or 1
@@ -173,38 +171,38 @@ local baseSingles = {
 
 -- [D] SPECIALS (Complex Loot Sources)
 local baseSpecials = {
-    { 
-        metaKey = "ChaosBuffs", key = "Chaos", display = "Chaos Buffs", color = "ChaosVoice", group = GROUP_BONUS, 
+    {
+        metaKey = "ChaosBuffs", key = "Chaos", display = "Chaos Buffs", color = "ChaosVoice", group = GROUP_BONUS,
         packedVar = "PackedChaosBuff",
         lootSource = { type = "LootSet", key = "TrialUpgrade", subKey = "PermanentTraits" }
     },
-    { 
-        metaKey = "ChaosCurses", key = "Chaos", display = "Chaos Curses", color = "ChaosVoice", group = GROUP_BONUS, 
+    {
+        metaKey = "ChaosCurses", key = "Chaos", display = "Chaos Curses", color = "ChaosVoice", group = GROUP_BONUS,
         packedVar = "PackedChaosCurse",
         lootSource = { type = "LootSet", key = "TrialUpgrade", subKey = "TemporaryTraits" }
     },
-    { 
-        metaKey = "CirceBNB", key = "CirceBNB", display = "Black Night Banishment", color = "CirceVoice", group = GROUP_SF_NPC, 
+    {
+        metaKey = "CirceBNB", key = "CirceBNB", display = "Black Night Banishment", color = "CirceVoice", group = GROUP_SF_NPC,
         packedVar = "PackedCirceBNB",
         lootSource = { type = "MetaUpgrade", dataSource = "MetaUpgradeData", exclude = {BaseMetaUpgrade = true} }
     },
-    { 
-        metaKey = "CirceCRD", key = "CirceCRD", display = "Red Citrine Divination", color = "CirceVoice", group = GROUP_SF_NPC, 
+    {
+        metaKey = "CirceCRD", key = "CirceCRD", display = "Red Citrine Divination", color = "CirceVoice", group = GROUP_SF_NPC,
         packedVar = "PackedCirceCRD",
         lootSource = { type = "MetaUpgrade", dataSource = "MetaUpgradeCardData", exclude = {BaseMetaUpgrade = true, BaseBonusMetaUpgrade = true} }
     },
-    { 
-        metaKey = "Judgement1", key = "Judgement1", display = "First Biome Judgement", color = "HadesVoice", group = GROUP_BONUS, 
+    {
+        metaKey = "Judgement1", key = "Judgement1", display = "First Biome Judgement", color = "HadesVoice", group = GROUP_BONUS,
         packedVar = "PackedJudgement1",
         lootSource = { type = "MetaUpgrade", dataSource = "MetaUpgradeCardData", exclude = {BaseMetaUpgrade = true, BaseBonusMetaUpgrade = true} }
     },
-    { 
-        metaKey = "Judgement2", key = "Judgement2", display = "Second Biome Judgement", color = "HadesVoice", group = GROUP_BONUS, 
+    {
+        metaKey = "Judgement2", key = "Judgement2", display = "Second Biome Judgement", color = "HadesVoice", group = GROUP_BONUS,
         packedVar = "PackedJudgement2",
         lootSource = { type = "MetaUpgrade", dataSource = "MetaUpgradeCardData", exclude = {BaseMetaUpgrade = true, BaseBonusMetaUpgrade = true} }
     },
-    { 
-        metaKey = "Judgement3", key = "Judgement3", display = "Third Biome Judgement", color = "HadesVoice", group = GROUP_BONUS, 
+    {
+        metaKey = "Judgement3", key = "Judgement3", display = "Third Biome Judgement", color = "HadesVoice", group = GROUP_BONUS,
         packedVar = "PackedJudgement3",
         lootSource = { type = "MetaUpgrade", dataSource = "MetaUpgradeCardData", exclude = {BaseMetaUpgrade = true, BaseBonusMetaUpgrade = true} }
     }
@@ -227,7 +225,7 @@ for _, def in ipairs(baseOlympians) do
     local tiers = def.tiers or MAX_GOD_TIERS
     local group = def.group or GROUP_CORE
     local loot  = def.name .. "Upgrade"
-    
+
     local srcData = { type="LootSet", key=loot }
     local dynamicBits = GetBitCount(srcData, def.name)
 
@@ -298,7 +296,7 @@ end
 for _, def in ipairs(baseSingles) do
     local sourceType = def.lootSourceType or "UnitSet"
     local sourceData = {}
-    
+
     if sourceType == "UnitSet" then
         sourceData = { type = "UnitSet", unitKey = "NPC_" .. def.key, configKey = def.configKey or ("NPC_" .. def.key .. "_01") }
     elseif sourceType == "SpellData" then
@@ -364,7 +362,7 @@ end
 -- 6. ENCOUNTER META
 -- =============================================================================
 local encounterDefinitions = {}
-local currentBit = 0 
+local currentBit = 0
 
 local BiomeMap = { F = "Erebus", G = "Oceanus", N = "Ephyra", O = "Thessaly", P = "Olympus", H = "Fields", I = "Tartarus" }
 
@@ -373,7 +371,7 @@ local function DefineEncounter(data)
     currentBit = currentBit + 1
 
     local regionName = BiomeMap[data.biome] or "Unknown"
-    data.region = regionName 
+    data.region = regionName
 
     if not data.label then
         data.label = string.format("%s (%s)", data.id, regionName)
@@ -462,7 +460,7 @@ local rarityEligible = {
     Hestia    = "PackedRarityHestia",
     Poseidon  = "PackedRarityPoseidon",
     Zeus      = "PackedRarityZeus",
-    
+
     Hermes    = "PackedRarityHermes",
     Artemis   = "PackedRarityArtemis",
     Athena    = "PackedRarityAthena",
@@ -476,7 +474,7 @@ for key, varName in pairs(rarityEligible) do
 end
 
 -- 2. Propagate to Tiers/Duplicates
-for key, entry in pairs(meta) do
+for _, entry in pairs(meta) do
     if entry.duplicateOf then
         local parent = meta[entry.duplicateOf]
         -- If parent has rarity enabled, child gets it too

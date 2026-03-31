@@ -64,40 +64,6 @@ end
 local managedSpecialState = lib.createSpecialState(config, public.definition.stateSchema)
 public.specialState = managedSpecialState
 
-local stateBackedKeys = {}
-for _, field in ipairs(public.definition.stateSchema) do
-    stateBackedKeys[field.configKey] = true
-end
-internal.stateBackedKeys = stateBackedKeys
-
-function internal.withStateBackedConfig(specialState, fn)
-    local realConfig = config
-    local proxy = setmetatable({}, {
-        __index = function(_, key)
-            if stateBackedKeys[key] then
-                return specialState.get(key)
-            end
-            return realConfig[key]
-        end,
-        __newindex = function(_, key, value)
-            if stateBackedKeys[key] then
-                specialState.set(key, value)
-            else
-                realConfig[key] = value
-            end
-        end,
-    })
-
-    local previous = config
-    config = proxy
-    local ok, resultA, resultB = pcall(fn)
-    config = previous
-    if not ok then
-        error(resultA, 0)
-    end
-    return resultA, resultB
-end
-
 local function SyncPublicExports()
     public.DrawTab = internal.DrawTab
     public.DrawQuickContent = internal.DrawQuickContent
@@ -164,21 +130,26 @@ rom.gui.add_imgui(function()
         end
         rom.ImGui.Separator()
         rom.ImGui.Spacing()
-        local beforeQuick = lib.captureSpecialConfigSnapshot(config, public.definition.stateSchema)
+        local debugEnabled = config.DebugMode == true
+        local beforeQuick = debugEnabled and lib.captureSpecialConfigSnapshot(config, public.definition.stateSchema) or nil
         if public.DrawQuickContent then
             public.DrawQuickContent(rom.ImGui, public.specialState, nil)
         end
-        warnIfStandaloneBypassedState(beforeQuick)
+        if debugEnabled then
+            warnIfStandaloneBypassedState(beforeQuick)
+        end
         if public.specialState.isDirty() then
             public.specialState.flushToConfig()
         end
         rom.ImGui.Spacing()
         rom.ImGui.Separator()
-        local beforeTab = lib.captureSpecialConfigSnapshot(config, public.definition.stateSchema)
+        local beforeTab = debugEnabled and lib.captureSpecialConfigSnapshot(config, public.definition.stateSchema) or nil
         if public.DrawTab then
             public.DrawTab(rom.ImGui, public.specialState, nil)
         end
-        warnIfStandaloneBypassedState(beforeTab)
+        if debugEnabled then
+            warnIfStandaloneBypassedState(beforeTab)
+        end
         if public.specialState.isDirty() then
             public.specialState.flushToConfig()
         end
