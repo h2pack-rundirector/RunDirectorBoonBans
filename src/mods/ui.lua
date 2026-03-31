@@ -23,10 +23,10 @@ local RARITY_COLORS = {
     [3] = { 0.62, 0.07, 1.0, 1.0 },
 }
 local NPC_REGION_OPTIONS = {
-    { label = "Neither", value = 1 },
+    { label = "Neither",    value = 1 },
     { label = "Underworld", value = 2 },
-    { label = "Surface", value = 3 },
-    { label = "Both", value = 4 },
+    { label = "Surface",    value = 3 },
+    { label = "Both",       value = 4 },
 }
 local OLYMPIAN_GROUPS = { "Core" }
 local OTHER_GROUPS = { "Bonus", "Hammers" }
@@ -317,7 +317,8 @@ local function DrawSettingsTab(ui, specialState)
         local priorityVal, priorityChanged = ui.Checkbox("Prioritize Core Boons", view.Padding_UsePriority ~= false)
         if priorityChanged then specialState.set("Padding_UsePriority", priorityVal) end
 
-        local futureVal, futureChanged = ui.Checkbox("Avoid 'Future Allowed' Items", view.Padding_AvoidFutureAllowed ~= false)
+        local futureVal, futureChanged = ui.Checkbox("Avoid 'Future Allowed' Items",
+            view.Padding_AvoidFutureAllowed ~= false)
         if futureChanged then specialState.set("Padding_AvoidFutureAllowed", futureVal) end
 
         local duoVal, duoChanged = ui.Checkbox("Allow Banned Duos/Legendaries", view.Padding_AllowDuos == true)

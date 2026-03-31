@@ -53,8 +53,12 @@ local function PopulateGodInfo()
         local displayName = overrideDisplayName or (traitData and game.GetDisplayName({ Text = boonKey })) or boonKey
 
         local boon = {
-            Key = boonKey, God = godKey, Bit = index, Mask = bitMask,
-            Name = displayName, Rarity = rarity
+            Key = boonKey,
+            God = godKey,
+            Bit = index,
+            Mask = bitMask,
+            Name = displayName,
+            Rarity = rarity
         }
 
         godInfo[godKey].boons = godInfo[godKey].boons or {}

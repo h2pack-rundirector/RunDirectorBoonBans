@@ -224,7 +224,8 @@ modutil.mod.Path.Wrap("AddTraitToHero", function(base, args)
 
         if godKey and state.BoonPickCounts and not traitUpgrade then
             state.BoonPickCounts[godKey] = (state.BoonPickCounts[godKey] or 0) + 1
-            Log("[Micro] AddTraitToHero: %s. God: %s. New Count: %d", traitData.Name, tostring(godKey), state.BoonPickCounts[godKey])
+            Log("[Micro] AddTraitToHero: %s. God: %s. New Count: %d", traitData.Name, tostring(godKey),
+                state.BoonPickCounts[godKey])
         end
         internal.ActiveGodKey = nil
     end

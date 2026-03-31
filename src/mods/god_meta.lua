@@ -14,14 +14,14 @@ end
 -- 1. CONFIGURATION CONSTANTS
 -- =============================================================================
 
-local GROUP_CORE      = "Core"
-local GROUP_BONUS     = "Bonus"
-local GROUP_HAMMERS   = "Hammers"
-local GROUP_UW_NPC    = "UW NPC"
-local GROUP_SF_NPC    = "SF NPC"
-local GROUP_KEEPSAKES = "Keepsakes"
+local GROUP_CORE       = "Core"
+local GROUP_BONUS      = "Bonus"
+local GROUP_HAMMERS    = "Hammers"
+local GROUP_UW_NPC     = "UW NPC"
+local GROUP_SF_NPC     = "SF NPC"
+local GROUP_KEEPSAKES  = "Keepsakes"
 
-local MAX_GOD_TIERS = 5
+local MAX_GOD_TIERS    = 5
 local MAX_HAMMER_TIERS = 3
 local MAX_HERMES_TIERS = 2
 
@@ -55,18 +55,15 @@ local function GetBitCount(source, defaultPrefix)
                 count = count + #data[source.subKey]
             end
         end
-
     elseif source.type == "UnitSet" then
         -- Count NPC Traits (Arachne, Narcissus, etc.)
         local unit = UnitSetData[source.unitKey]
         if unit and unit[source.configKey] and unit[source.configKey].Traits then
             count = #unit[source.configKey].Traits
         end
-
     elseif source.type == "SpellData" then
         -- Count Selene Spells
         for _ in pairs(SpellData) do count = count + 1 end
-
     elseif source.type == "WeaponUpgrade" then
         -- Count Hammer Traits by Prefix match
         local data = LootSetData.Loot and LootSetData.Loot.WeaponUpgrade and LootSetData.Loot.WeaponUpgrade.Traits
@@ -81,7 +78,6 @@ local function GetBitCount(source, defaultPrefix)
                 end
             end
         end
-
     elseif source.type == "MetaUpgrade" then
         -- Count Cards/Shrine options (Circe)
         local data = _G[source.dataSource]
@@ -92,7 +88,6 @@ local function GetBitCount(source, defaultPrefix)
                 if isValid then count = count + 1 end
             end
         end
-
     elseif source.type == "Keepsake" then
         if source.key == "HadesKeepsake" then
             local unit = UnitSetData["NPC_Hades"]
@@ -136,7 +131,7 @@ local baseOlympians = {
     { name = "Hestia",     color = "HestiaDamageLight" },
     { name = "Poseidon",   color = "PoseidonDamage" },
     { name = "Zeus",       color = "ZeusDamageLight" },
-    { name = "Hermes",     color = "HermesVoice", group = GROUP_BONUS, tiers = MAX_HERMES_TIERS }
+    { name = "Hermes",     color = "HermesVoice",      group = GROUP_BONUS, tiers = MAX_HERMES_TIERS }
 }
 
 -- [B] WEAPONS (Auto-generates 2 Tiers)
@@ -152,59 +147,87 @@ local baseWeapons = {
 -- [C] SINGLES (NPCs & Simple Items)
 local baseSingles = {
     -- Underworld
-    { key = "Arachne",   color = "ArachneVoice",   group = GROUP_UW_NPC },
-    { key = "Narcissus", color = "NarcissusVoice", group = GROUP_UW_NPC },
-    { key = "Echo",      color = "EchoVoice",      group = GROUP_UW_NPC },
-    { key = "Hades",     color = "HadesVoice",     group = GROUP_UW_NPC, configKey = "NPC_Hades_Field_01" },
+    { key = "Arachne",       color = "ArachneVoice",      group = GROUP_UW_NPC },
+    { key = "Narcissus",     color = "NarcissusVoice",    group = GROUP_UW_NPC },
+    { key = "Echo",          color = "EchoVoice",         group = GROUP_UW_NPC },
+    { key = "Hades",         color = "HadesVoice",        group = GROUP_UW_NPC,    configKey = "NPC_Hades_Field_01" },
     -- Surface
-    { key = "Medea",     color = "MedeaVoice",     group = GROUP_SF_NPC },
-    { key = "Circe",     color = "CirceVoice",     group = GROUP_SF_NPC },
-    { key = "Icarus",    color = "IcarusVoice",    group = GROUP_SF_NPC },
-    { key = "Dionysus",  color = "DionysusDamage", group = GROUP_SF_NPC },
+    { key = "Medea",         color = "MedeaVoice",        group = GROUP_SF_NPC },
+    { key = "Circe",         color = "CirceVoice",        group = GROUP_SF_NPC },
+    { key = "Icarus",        color = "IcarusVoice",       group = GROUP_SF_NPC },
+    { key = "Dionysus",      color = "DionysusDamage",    group = GROUP_SF_NPC },
     -- Bonus
-    { key = "Selene",    color = "SeleneVoice",    group = GROUP_BONUS,  lootSourceType = "SpellData" },
-    { key = "Artemis",   color = "ArtemisDamage",  group = GROUP_BONUS,  configKey = "NPC_Artemis_Field_01" },
-    { key = "Athena",    color = "AthenaDamageLight", group = GROUP_BONUS, configKey = "NPC_Athena_01" },
+    { key = "Selene",        color = "SeleneVoice",       group = GROUP_BONUS,     lootSourceType = "SpellData" },
+    { key = "Artemis",       color = "ArtemisDamage",     group = GROUP_BONUS,     configKey = "NPC_Artemis_Field_01" },
+    { key = "Athena",        color = "AthenaDamageLight", group = GROUP_BONUS,     configKey = "NPC_Athena_01" },
     -- Keepsake
-    { key = "HadesKeepsake", color = "HadesVoice", group = GROUP_KEEPSAKES, duplicateOf = "Hades", lootSourceType = "Keepsake" }
+    { key = "HadesKeepsake", color = "HadesVoice",        group = GROUP_KEEPSAKES, duplicateOf = "Hades",             lootSourceType = "Keepsake" }
 }
 
 -- [D] SPECIALS (Complex Loot Sources)
 local baseSpecials = {
     {
-        metaKey = "ChaosBuffs", key = "Chaos", display = "Chaos Buffs", color = "ChaosVoice", group = GROUP_BONUS,
+        metaKey = "ChaosBuffs",
+        key = "Chaos",
+        display = "Chaos Buffs",
+        color = "ChaosVoice",
+        group = GROUP_BONUS,
         packedVar = "PackedChaosBuff",
         lootSource = { type = "LootSet", key = "TrialUpgrade", subKey = "PermanentTraits" }
     },
     {
-        metaKey = "ChaosCurses", key = "Chaos", display = "Chaos Curses", color = "ChaosVoice", group = GROUP_BONUS,
+        metaKey = "ChaosCurses",
+        key = "Chaos",
+        display = "Chaos Curses",
+        color = "ChaosVoice",
+        group = GROUP_BONUS,
         packedVar = "PackedChaosCurse",
         lootSource = { type = "LootSet", key = "TrialUpgrade", subKey = "TemporaryTraits" }
     },
     {
-        metaKey = "CirceBNB", key = "CirceBNB", display = "Black Night Banishment", color = "CirceVoice", group = GROUP_SF_NPC,
+        metaKey = "CirceBNB",
+        key = "CirceBNB",
+        display = "Black Night Banishment",
+        color = "CirceVoice",
+        group = GROUP_SF_NPC,
         packedVar = "PackedCirceBNB",
-        lootSource = { type = "MetaUpgrade", dataSource = "MetaUpgradeData", exclude = {BaseMetaUpgrade = true} }
+        lootSource = { type = "MetaUpgrade", dataSource = "MetaUpgradeData", exclude = { BaseMetaUpgrade = true } }
     },
     {
-        metaKey = "CirceCRD", key = "CirceCRD", display = "Red Citrine Divination", color = "CirceVoice", group = GROUP_SF_NPC,
+        metaKey = "CirceCRD",
+        key = "CirceCRD",
+        display = "Red Citrine Divination",
+        color = "CirceVoice",
+        group = GROUP_SF_NPC,
         packedVar = "PackedCirceCRD",
-        lootSource = { type = "MetaUpgrade", dataSource = "MetaUpgradeCardData", exclude = {BaseMetaUpgrade = true, BaseBonusMetaUpgrade = true} }
+        lootSource = { type = "MetaUpgrade", dataSource = "MetaUpgradeCardData", exclude = { BaseMetaUpgrade = true, BaseBonusMetaUpgrade = true } }
     },
     {
-        metaKey = "Judgement1", key = "Judgement1", display = "First Biome Judgement", color = "HadesVoice", group = GROUP_BONUS,
+        metaKey = "Judgement1",
+        key = "Judgement1",
+        display = "First Biome Judgement",
+        color = "HadesVoice",
+        group = GROUP_BONUS,
         packedVar = "PackedJudgement1",
-        lootSource = { type = "MetaUpgrade", dataSource = "MetaUpgradeCardData", exclude = {BaseMetaUpgrade = true, BaseBonusMetaUpgrade = true} }
+        lootSource = { type = "MetaUpgrade", dataSource = "MetaUpgradeCardData", exclude = { BaseMetaUpgrade = true, BaseBonusMetaUpgrade = true } }
     },
     {
-        metaKey = "Judgement2", key = "Judgement2", display = "Second Biome Judgement", color = "HadesVoice", group = GROUP_BONUS,
+        metaKey = "Judgement2",
+        key = "Judgement2",
+        display = "Second Biome Judgement",
+        color = "HadesVoice",
+        group = GROUP_BONUS,
         packedVar = "PackedJudgement2",
-        lootSource = { type = "MetaUpgrade", dataSource = "MetaUpgradeCardData", exclude = {BaseMetaUpgrade = true, BaseBonusMetaUpgrade = true} }
+        lootSource = { type = "MetaUpgrade", dataSource = "MetaUpgradeCardData", exclude = { BaseMetaUpgrade = true, BaseBonusMetaUpgrade = true } }
     },
     {
-        metaKey = "Judgement3", key = "Judgement3", display = "Third Biome Judgement", color = "HadesVoice", group = GROUP_BONUS,
+        metaKey = "Judgement3",
+        key = "Judgement3",
+        display = "Third Biome Judgement",
+        color = "HadesVoice",
+        group = GROUP_BONUS,
         packedVar = "PackedJudgement3",
-        lootSource = { type = "MetaUpgrade", dataSource = "MetaUpgradeCardData", exclude = {BaseMetaUpgrade = true, BaseBonusMetaUpgrade = true} }
+        lootSource = { type = "MetaUpgrade", dataSource = "MetaUpgradeCardData", exclude = { BaseMetaUpgrade = true, BaseBonusMetaUpgrade = true } }
     }
 }
 
@@ -222,11 +245,11 @@ end
 
 -- PROCESS OLYMPIANS
 for _, def in ipairs(baseOlympians) do
-    local tiers = def.tiers or MAX_GOD_TIERS
-    local group = def.group or GROUP_CORE
-    local loot  = def.name .. "Upgrade"
+    local tiers       = def.tiers or MAX_GOD_TIERS
+    local group       = def.group or GROUP_CORE
+    local loot        = def.name .. "Upgrade"
 
-    local srcData = { type="LootSet", key=loot }
+    local srcData     = { type = "LootSet", key = loot }
     local dynamicBits = GetBitCount(srcData, def.name)
 
     RegisterGod(def.name, {
@@ -298,7 +321,12 @@ for _, def in ipairs(baseSingles) do
     local sourceData = {}
 
     if sourceType == "UnitSet" then
-        sourceData = { type = "UnitSet", unitKey = "NPC_" .. def.key, configKey = def.configKey or ("NPC_" .. def.key .. "_01") }
+        sourceData = {
+            type = "UnitSet",
+            unitKey = "NPC_" .. def.key,
+            configKey = def.configKey or
+                ("NPC_" .. def.key .. "_01")
+        }
     elseif sourceType == "SpellData" then
         sourceData = { type = "SpellData" }
     elseif sourceType == "Keepsake" then
@@ -340,8 +368,8 @@ internal.godMeta = meta
 
 -- Global Lookup Tables
 internal.lootKeyLookup = {}
-internal.priorityLabels = {"None"}
-internal.priorityValues = {""}
+internal.priorityLabels = { "None" }
+internal.priorityValues = { "" }
 
 local orderedKeys = {}
 for k, v in pairs(meta) do
@@ -384,8 +412,11 @@ local function DefineEncounter(data)
     local keyIdentifier = data.id
 
     if data.useRegionInKey then
-        if data.id == data.type then keyIdentifier = regionName
-        else keyIdentifier = data.id .. regionName end
+        if data.id == data.type then
+            keyIdentifier = regionName
+        else
+            keyIdentifier = data.id .. regionName
+        end
     end
 
     data.configKeyMin = prefix .. keyIdentifier .. "Min"
@@ -396,47 +427,47 @@ local function DefineEncounter(data)
 end
 
 -- COMBAT
-DefineEncounter({ id="Artemis", type="Combat", biome="F", min=4, max=16 })
-DefineEncounter({ id="Artemis", type="Combat", biome="G", min=4, max=16 })
-DefineEncounter({ id="Artemis", type="Combat", biome="N", min=4, max=16 })
+DefineEncounter({ id = "Artemis", type = "Combat", biome = "F", min = 4, max = 16 })
+DefineEncounter({ id = "Artemis", type = "Combat", biome = "G", min = 4, max = 16 })
+DefineEncounter({ id = "Artemis", type = "Combat", biome = "N", min = 4, max = 16 })
 
-DefineEncounter({ id="Nemesis", type="Combat", biome="F", min=4, max=10 })
-DefineEncounter({ id="Nemesis", type="Combat", biome="G", min=4, max=10 })
-DefineEncounter({ id="Nemesis", type="Combat", biome="H", min=4, max=10 })
-DefineEncounter({ id="Nemesis", type="Combat", biome="I", min=4, max=10 })
+DefineEncounter({ id = "Nemesis", type = "Combat", biome = "F", min = 4, max = 10 })
+DefineEncounter({ id = "Nemesis", type = "Combat", biome = "G", min = 4, max = 10 })
+DefineEncounter({ id = "Nemesis", type = "Combat", biome = "H", min = 4, max = 10 })
+DefineEncounter({ id = "Nemesis", type = "Combat", biome = "I", min = 4, max = 10 })
 
-DefineEncounter({ id="Heracles", type="Combat", biome="N", min=0, max=20 })
-DefineEncounter({ id="Heracles", type="Combat", biome="O", min=0, max=20 })
-DefineEncounter({ id="Heracles", type="Combat", biome="P", min=0, max=20 })
+DefineEncounter({ id = "Heracles", type = "Combat", biome = "N", min = 0, max = 20 })
+DefineEncounter({ id = "Heracles", type = "Combat", biome = "O", min = 0, max = 20 })
+DefineEncounter({ id = "Heracles", type = "Combat", biome = "P", min = 0, max = 20 })
 
-DefineEncounter({ id="Icarus",   type="Combat", biome="O", min=3, max=8 })
-DefineEncounter({ id="Icarus",   type="Combat", biome="P", min=3, max=8 })
-DefineEncounter({ id="Athena",   type="Combat", biome="P", min=4, max=8 })
+DefineEncounter({ id = "Icarus", type = "Combat", biome = "O", min = 3, max = 8 })
+DefineEncounter({ id = "Icarus", type = "Combat", biome = "P", min = 3, max = 8 })
+DefineEncounter({ id = "Athena", type = "Combat", biome = "P", min = 4, max = 8 })
 
 -- STORY
-DefineEncounter({ id="Arachne",   type="Story", biome="F", min=4, max=8 })
-DefineEncounter({ id="Narcissus", type="Story", biome="G", min=3, max=6 })
-DefineEncounter({ id="Medea",     type="Story", biome="N", min=0, max=1 })
-DefineEncounter({ id="Circe",     type="Story", biome="O", min=3, max=5 })
-DefineEncounter({ id="Dionysus",  type="Story", biome="P", min=2, max=7 })
+DefineEncounter({ id = "Arachne", type = "Story", biome = "F", min = 4, max = 8 })
+DefineEncounter({ id = "Narcissus", type = "Story", biome = "G", min = 3, max = 6 })
+DefineEncounter({ id = "Medea", type = "Story", biome = "N", min = 0, max = 1 })
+DefineEncounter({ id = "Circe", type = "Story", biome = "O", min = 3, max = 5 })
+DefineEncounter({ id = "Dionysus", type = "Story", biome = "P", min = 2, max = 7 })
 
 
 -- MIDSHOP
-DefineEncounter({ id="Shop", type="Shop", biome="F", useRegionInKey=true, min=4, max=6 })
-DefineEncounter({ id="Shop", type="Shop", biome="G", useRegionInKey=true, min=3, max=6 })
-DefineEncounter({ id="Shop", type="Shop", biome="O", useRegionInKey=true, min=4, max=5 })
-DefineEncounter({ id="Shop", type="Shop", biome="P", useRegionInKey=true, min=5, max=7 })
+DefineEncounter({ id = "Shop", type = "Shop", biome = "F", useRegionInKey = true, min = 4, max = 6 })
+DefineEncounter({ id = "Shop", type = "Shop", biome = "G", useRegionInKey = true, min = 3, max = 6 })
+DefineEncounter({ id = "Shop", type = "Shop", biome = "O", useRegionInKey = true, min = 4, max = 5 })
+DefineEncounter({ id = "Shop", type = "Shop", biome = "P", useRegionInKey = true, min = 5, max = 7 })
 
 -- TRIALS
-DefineEncounter({ id="Trial", type="Trial", biome="F", useRegionInKey=true, min=6, max=10 })
-DefineEncounter({ id="Trial", type="Trial", biome="G", useRegionInKey=true, min=3, max=7 })
-DefineEncounter({ id="Trial", type="Trial", biome="O", useRegionInKey=true, min=2, max=6 })
+DefineEncounter({ id = "Trial", type = "Trial", biome = "F", useRegionInKey = true, min = 6, max = 10 })
+DefineEncounter({ id = "Trial", type = "Trial", biome = "G", useRegionInKey = true, min = 3, max = 7 })
+DefineEncounter({ id = "Trial", type = "Trial", biome = "O", useRegionInKey = true, min = 2, max = 6 })
 
 -- FOUNTAINS
-DefineEncounter({ id="Fountain", type="Fountain", biome="F", useRegionInKey=true, min=4, max=8 })
-DefineEncounter({ id="Fountain", type="Fountain", biome="G", useRegionInKey=true, min=4, max=6 })
-DefineEncounter({ id="Fountain", type="Fountain", biome="O", useRegionInKey=true, min=3, max=5 })
-DefineEncounter({ id="Fountain", type="Fountain", biome="P", useRegionInKey=true, min=4, max=7 })
+DefineEncounter({ id = "Fountain", type = "Fountain", biome = "F", useRegionInKey = true, min = 4, max = 8 })
+DefineEncounter({ id = "Fountain", type = "Fountain", biome = "G", useRegionInKey = true, min = 4, max = 6 })
+DefineEncounter({ id = "Fountain", type = "Fountain", biome = "O", useRegionInKey = true, min = 3, max = 5 })
+DefineEncounter({ id = "Fountain", type = "Fountain", biome = "P", useRegionInKey = true, min = 4, max = 7 })
 
 internal.encounterDefinitions = encounterDefinitions
 
@@ -451,20 +482,20 @@ internal.encounterLookup = lookup
 -- 7. RARITY MAPPING
 -- =============================================================================
 local rarityEligible = {
-    Aphrodite = "PackedRarityAphrodite",
-    Apollo    = "PackedRarityApollo",
-    Ares      = "PackedRarityAres",
-    Demeter   = "PackedRarityDemeter",
-    Hephaestus= "PackedRarityHephaestus",
-    Hera      = "PackedRarityHera",
-    Hestia    = "PackedRarityHestia",
-    Poseidon  = "PackedRarityPoseidon",
-    Zeus      = "PackedRarityZeus",
+    Aphrodite  = "PackedRarityAphrodite",
+    Apollo     = "PackedRarityApollo",
+    Ares       = "PackedRarityAres",
+    Demeter    = "PackedRarityDemeter",
+    Hephaestus = "PackedRarityHephaestus",
+    Hera       = "PackedRarityHera",
+    Hestia     = "PackedRarityHestia",
+    Poseidon   = "PackedRarityPoseidon",
+    Zeus       = "PackedRarityZeus",
 
-    Hermes    = "PackedRarityHermes",
-    Artemis   = "PackedRarityArtemis",
-    Athena    = "PackedRarityAthena",
-    Dionysus  = "PackedRarityDionysus"
+    Hermes     = "PackedRarityHermes",
+    Artemis    = "PackedRarityArtemis",
+    Athena     = "PackedRarityAthena",
+    Dionysus   = "PackedRarityDionysus"
 }
 
 for key, varName in pairs(rarityEligible) do
