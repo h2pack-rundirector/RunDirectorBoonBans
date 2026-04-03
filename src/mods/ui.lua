@@ -321,7 +321,7 @@ local function HandleTabSwitch(tabName)
     end
 end
 
-local function DrawNpcRegionFilter(ui, uiState)
+local function DrawNpcRegionFilter(ui)
     ui.Text("Show NPC Boons:")
     local currentRegion = store.read("ViewRegion") or 4
     for index, option in ipairs(NPC_REGION_OPTIONS) do
