@@ -23,6 +23,13 @@ local function WriteValue(key, value, uiState)
     uiState.set(key, value)
 end
 
+local function InvalidateUiCaches(godKey)
+    local uiData = internal.ui
+    if uiData and uiData.InvalidateRootSummaryByScope then
+        uiData.InvalidateRootSummaryByScope(godKey)
+    end
+end
+
 function internal.SetBanConfig(godKey, value, uiState)
     local meta = godMeta[godKey]
     if not meta or not meta.packedConfig then return false end
@@ -113,7 +120,32 @@ function internal.UpdateGodStats(godKey, uiState)
     entry.banned = count
     entry.total = #entry.boons
     entry.banLabel = string.format("(%d/%d Banned)", count, #entry.boons)
+    InvalidateUiCaches(godKey)
     return true
+end
+
+function internal.GetTotalBansConfigured()
+    local totalBans = 0
+    for _, info in pairs(godInfo) do
+        if type(info) == "table" and type(info.banned) == "number" then
+            totalBans = totalBans + info.banned
+        end
+    end
+    return totalBans
+end
+
+function internal.GetBridalGlowTargetBoonKey(uiState)
+    local boonKey = ReadValue("BridalGlowTargetBoon", uiState)
+    if not boonKey or boonKey == "" then
+        return nil
+    end
+
+    for _, entry in pairs(godInfo) do
+        if type(entry) == "table" and entry.boonByKey and entry.boonByKey[boonKey] then
+            return boonKey
+        end
+    end
+    return nil
 end
 
 function internal.ResetGodBans(god, uiState)
@@ -123,6 +155,8 @@ function internal.ResetGodBans(god, uiState)
             return false
         end
         godInfo[god].banned = 0
+        godInfo[god].banLabel = string.format("(%d/%d Banned)", 0, godInfo[god].total or 0)
+        InvalidateUiCaches(god)
         Log("[Micro] Reset bans for %s", god)
         return true
     end
@@ -138,6 +172,8 @@ function internal.BanAllGodBans(god, uiState)
             return false
         end
         godInfo[god].banned = godInfo[god].total
+        godInfo[god].banLabel = string.format("(%d/%d Banned)", godInfo[god].banned or 0, godInfo[god].total or 0)
+        InvalidateUiCaches(god)
         Log("[Micro] Banned ALL for %s", god)
         return true
     end

@@ -37,6 +37,7 @@ public.definition.stateSchema = {
     { type = "checkbox", configKey = "Padding_AvoidFutureAllowed", default = config.Padding_AvoidFutureAllowed },
     { type = "checkbox", configKey = "Padding_AllowDuos",          default = config.Padding_AllowDuos },
     { type = "stepper",  configKey = "ImproveFirstNBoonRarity",    default = config.ImproveFirstNBoonRarity,   min = 0, max = 15 },
+    { type = "string",   configKey = "BridalGlowTargetBoon",       default = config.BridalGlowTargetBoon, maxLen = 128 },
 }
 
 do

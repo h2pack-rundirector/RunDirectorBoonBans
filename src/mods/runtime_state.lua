@@ -43,7 +43,7 @@ local function PopulateGodInfo()
     godInfo.traitLookup = {}
 
     for key, _ in pairs(godMeta) do
-        godInfo[key] = { color = GetSourceColor(key), boons = {} }
+        godInfo[key] = { color = GetSourceColor(key), boons = {}, boonByKey = {} }
     end
 
     local function addBoonToRuntime(godKey, boonKey, index, overrideDisplayName)
@@ -64,11 +64,40 @@ local function PopulateGodInfo()
             Bit = index,
             Mask = bitMask,
             Name = displayName,
+            NameLower = string.lower(displayName),
             Rarity = rarity
         }
 
+        if rarity.isDuo then
+            boon.IsSpecial = true
+            boon.IsRarityEligible = false
+            boon.SpecialDisplayLabel = "[D] " .. displayName
+            boon.SpecialTooltip = "Duo Boon"
+            boon.SpecialBadgeText = " D "
+            boon.SpecialBadgeColor = { 0.82, 1.0, 0.38, 1.0 }
+        elseif rarity.isLegendary then
+            boon.IsSpecial = true
+            boon.IsRarityEligible = false
+            boon.SpecialDisplayLabel = "[L] " .. displayName
+            boon.SpecialTooltip = "Legendary Boon"
+            boon.SpecialBadgeText = " L "
+            boon.SpecialBadgeColor = { 1.0, 0.56, 0.0, 1.0 }
+        elseif rarity.isElemental then
+            boon.IsSpecial = true
+            boon.IsRarityEligible = false
+            boon.SpecialDisplayLabel = "[I] " .. displayName
+            boon.SpecialTooltip = "Elemental Infusion"
+            boon.SpecialBadgeText = " I "
+            boon.SpecialBadgeColor = { 1.0, 0.29, 1.0, 1.0 }
+        else
+            boon.IsSpecial = false
+            boon.IsRarityEligible = true
+            boon.SpecialDisplayLabel = displayName
+        end
+
         godInfo[godKey].boons = godInfo[godKey].boons or {}
         t_insert(godInfo[godKey].boons, boon)
+        godInfo[godKey].boonByKey[boonKey] = boon
 
         local entry = { god = godKey, bit = index, mask = bitMask }
         if not godInfo.traitLookup[boonKey] then

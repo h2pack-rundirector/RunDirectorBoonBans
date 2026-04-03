@@ -9,6 +9,7 @@ return {
     Padding_AllowDuos = false,
 
     ImproveFirstNBoonRarity = 0,
+    BridalGlowTargetBoon = "",
     ViewRegion = 4,
 
     PackedAphrodite1 = 0, PackedAphrodite2 = 0, PackedAphrodite3 = 0, PackedAphrodite4 = 0, PackedAphrodite5 = 0,

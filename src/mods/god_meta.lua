@@ -263,7 +263,7 @@ for _, def in ipairs(baseOlympians) do
         local key = def.name .. i
         RegisterGod(key, {
             key = key,
-            displayTextKey = key,
+            displayTextKey = GetOrdinal(i) .. " " .. def.name,
             colorKey = def.color,
             -- Tiers share the same bit count as Tier 1
             packedConfig = { var = "Packed" .. def.name .. i, offset = 0, bits = dynamicBits },
@@ -285,7 +285,7 @@ for _, def in ipairs(baseWeapons) do
     RegisterGod(def.key, {
         key = def.key,
         displayTextKey = "1st " .. def.display,
-        colorKey = "Brown",
+        colorKey = "RosyBrown",
         packedConfig = { var = "Packed" .. def.key .. "1", offset = 0, bits = dynamicBits },
         lootSource = srcData,
         uiGroup = GROUP_HAMMERS,
@@ -298,7 +298,7 @@ for _, def in ipairs(baseWeapons) do
         RegisterGod(key, {
             key = key,
             displayTextKey = GetOrdinal(i) .. " " .. def.display,
-            colorKey = "Brown",
+            colorKey = "RosyBrown",
             packedConfig = { var = "Packed" .. def.key .. tostring(i), offset = 0, bits = dynamicBits },
             lootSource = srcData,
             duplicateOf = def.key,
