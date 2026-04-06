@@ -9,6 +9,7 @@ local ImGuiCol = rom.ImGuiCol
 local FORCE_DROPDOWN_OFFSET = 84
 local FORCE_DROPDOWN_WIDTH = 220
 local RARITY_CONTROL_OFFSET = 300
+local RARITY_LABEL_FIXED_WIDTH = 60
 
 local function GetForceScopeState(scopeKey, uiState)
     local banned, total = uiData.GetScopeSummary(scopeKey, uiState)
@@ -98,8 +99,9 @@ function uiData.DrawRarityStepper(ui, root, row, uiState, options)
         nextValue = currentValue - 1
     end
     ui.SameLine()
+    local labelStart = ui.GetCursorPosX()
     uiData.DrawColoredText(ui, color, label)
-    ui.SameLine()
+    ui.SetCursorPosX(labelStart + RARITY_LABEL_FIXED_WIDTH)
     if ui.Button("+") and currentValue < 3 then
         nextValue = currentValue + 1
     end
@@ -479,11 +481,8 @@ function uiData.DrawSettingsTab(ui, uiState)
 
     if view.EnablePadding == true then
         ui.Indent()
-        local priorityVal, priorityChanged = ui.Checkbox("Prioritize Core Boons", view.Padding_UsePriority ~= false)
-        if priorityChanged then uiState.set("Padding_UsePriority", priorityVal) end
-
-        uiData.DrawDeferredSliderInt(ui, uiState, "Priority Bias", "Padding_PriorityChance", 0, 100, 75)
-        ui.TextDisabled("(0 = random banned padding, 100 = always prefer priority items when available.)")
+        uiData.DrawStepInput(ui, uiState, "Prioritize Core Boons for First N", "Padding_PrioritizeCoreForFirstN", 0, 15, 1)
+        ui.TextDisabled("(0 = disabled, N = prefer core boons in padding for the first N picks from each god.)")
 
         local futureVal, futureChanged = ui.Checkbox("Avoid 'Future Allowed' Items",
             view.Padding_AvoidFutureAllowed ~= false)

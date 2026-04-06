@@ -3,7 +3,7 @@ local uiData = internal.ui
 
 local ImGuiCol = rom.ImGuiCol
 
-function uiData.DrawRootSelector(ui, tabName, visibleRoots, uiState, headingColor)
+function uiData.DrawRootSelector(ui, tabName, visibleRoots, uiState)
     local selectedRoot = uiData.GetRootById(uiData.selectedRootByMainTab[tabName])
     local lastGroup = nil
 
@@ -12,7 +12,8 @@ function uiData.DrawRootSelector(ui, tabName, visibleRoots, uiState, headingColo
             if lastGroup ~= nil then
                 ui.Spacing()
             end
-            uiData.DrawColoredText(ui, headingColor, root.group)
+            ui.TextDisabled(root.group)
+            ui.Separator()
             lastGroup = root.group
         end
 
@@ -74,7 +75,7 @@ function uiData.DrawRootDetail(ui, root, uiState)
     end
 end
 
-function uiData.DrawDomainTab(ui, uiState, tabName, headingColor)
+function uiData.DrawDomainTab(ui, uiState, tabName)
     if tabName == "NPCs" then
         uiData.DrawNpcRegionFilter(ui)
         ui.Separator()
@@ -96,7 +97,7 @@ function uiData.DrawDomainTab(ui, uiState, tabName, headingColor)
     local sidebarW = totalW * uiData.SIDEBAR_RATIO
 
     ui.BeginChild("BoonBansSidebar##" .. tabName, sidebarW, 0, true)
-    uiData.DrawRootSelector(ui, tabName, visibleRoots, uiState, headingColor)
+    uiData.DrawRootSelector(ui, tabName, visibleRoots, uiState)
     ui.EndChild()
 
     ui.SameLine()
@@ -106,14 +107,14 @@ function uiData.DrawDomainTab(ui, uiState, tabName, headingColor)
     ui.EndChild()
 end
 
-function uiData.DrawMainContent(ui, uiState, headingColor)
+function uiData.DrawMainContent(ui, uiState)
     if ui.BeginTabBar("BoonSubTabs") then
         for _, tabName in ipairs(uiData.MAIN_TABS) do
             if ui.BeginTabItem(tabName) then
                 if tabName == "Settings" then
                     uiData.DrawSettingsTab(ui, uiState)
                 else
-                    uiData.DrawDomainTab(ui, uiState, tabName, headingColor)
+                    uiData.DrawDomainTab(ui, uiState, tabName)
                 end
                 ui.EndTabItem()
             end
@@ -122,10 +123,9 @@ function uiData.DrawMainContent(ui, uiState, headingColor)
     end
 end
 
-function internal.DrawTab(ui, uiState, theme)
-    local colors = uiData.GetThemeColors(theme)
+function internal.DrawTab(ui, uiState)
     uiData.RefreshFrameState()
-    uiData.DrawMainContent(ui, uiState, colors.info)
+    uiData.DrawMainContent(ui, uiState)
 end
 
 function internal.DrawQuickContent(ui, uiState, theme)

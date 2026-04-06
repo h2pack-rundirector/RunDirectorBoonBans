@@ -28,7 +28,7 @@ local function ShuffleTable(t)
     return t
 end
 
-local function GeneratePriorityQueue(allowed, banned, godKey, currentTier, isHammer, priorityList, queueMaxSize)
+local function GeneratePriorityQueue(allowed, banned, godKey, currentTier, isHammer, priorityList, queueMaxSize, godBoonCount)
     local queue = {}
     local duoLegendaryQueue = {}
 
@@ -53,7 +53,11 @@ local function GeneratePriorityQueue(allowed, banned, godKey, currentTier, isHam
     end
 
     if store.read("EnablePadding") and #banned > 0 then
-        local usePriority = (store.read("Padding_UsePriority") ~= false)
+        -- Prioritize core boons (PriorityUpgrades) in padding for the first N god boons.
+        -- After N boons have been picked, padding is a flat shuffle.
+        local prioritizeN = store.read("Padding_PrioritizeCoreForFirstN") or 0
+        local usePriority = (not isHammer) and (prioritizeN > 0) and (godBoonCount < prioritizeN)
+
         local prioritySet = {}
         if usePriority and priorityList then
             for _, name in ipairs(priorityList) do
@@ -78,25 +82,11 @@ local function GeneratePriorityQueue(allowed, banned, godKey, currentTier, isHam
         ShuffleTable(highPrioPool)
         ShuffleTable(lowPrioPool)
 
+        -- Core boons go first, then the rest. No random bias — within the first N window
+        -- core boons always lead the padding pool, after N everything is flat.
         local finalPool = {}
-        local bias = math.max(0, math.min(100, store.read("Padding_PriorityChance") or 75)) / 100
-        while #highPrioPool > 0 or #lowPrioPool > 0 do
-            local pickHigh = false
-
-            if #highPrioPool > 0 and #lowPrioPool > 0 then
-                if math.random() < bias then
-                    pickHigh = true
-                end
-            elseif #highPrioPool > 0 then
-                pickHigh = true
-            end
-
-            if pickHigh then
-                table.insert(finalPool, table.remove(highPrioPool))
-            else
-                table.insert(finalPool, table.remove(lowPrioPool))
-            end
-        end
+        for _, item in ipairs(highPrioPool) do table.insert(finalPool, item) end
+        for _, item in ipairs(lowPrioPool) do table.insert(finalPool, item) end
 
         local avoidFuture = (store.read("Padding_AvoidFutureAllowed") ~= false)
         local allowDuos = (store.read("Padding_AllowDuos") == true)
@@ -196,7 +186,13 @@ modutil.mod.Path.Wrap("GetEligibleUpgrades", function(base, upgradeOptions, loot
 
     Log("[Micro] Loot Result: Passed %d, Banned %d", #allowed, #banned)
 
-    if #allowed == 0 then return fullList end
+    if #allowed == 0 then
+        lootData._BoonBans_PendingAllowed = {}
+        lootData._BoonBans_PendingFullCount = #fullList
+        return fullList
+    end
+
+    local godBoonCount = (internal.GetOrRecalcBoonCounts()[currentGodKey] or 0)
 
     local queue, duoLegendaryQueue = GeneratePriorityQueue(
         allowed,
@@ -205,7 +201,8 @@ modutil.mod.Path.Wrap("GetEligibleUpgrades", function(base, upgradeOptions, loot
         targetTier,
         isHammer,
         lootData.PriorityUpgrades,
-        GetTotalLootChoices()
+        GetTotalLootChoices(),
+        godBoonCount
     )
 
     if store.read("DebugMode") then
@@ -214,7 +211,10 @@ modutil.mod.Path.Wrap("GetEligibleUpgrades", function(base, upgradeOptions, loot
             Log("  %d. %s (Rarity: %s)", i, queued.ItemName, tostring(queued.rarity))
         end
     end
-    CurrentRun._BoonBans_DuoLegendaryQueue = duoLegendaryQueue
+
+    lootData._BoonBans_PendingAllowed = allowed
+    lootData._BoonBans_PendingFullCount = #fullList
+    lootData._BoonBans_DuoLegendaryQueue = duoLegendaryQueue
 
     return queue
 end)
@@ -227,21 +227,19 @@ modutil.mod.Path.Wrap("GetReplacementTraits", function(base, traitNames, onlyFro
 end)
 
 modutil.mod.Path.Wrap("SetTraitsOnLoot", function(base, lootData, args)
-    local restoreChance = nil
-    if IsBoonBansActive() and CurrentRun.Hero.BoonData then
-        restoreChance = CurrentRun.Hero.BoonData.ReplaceChance
-        CurrentRun.Hero.BoonData.ReplaceChance = 0.0
-    end
-
     base(lootData, args)
 
-    if restoreChance ~= nil then
-        CurrentRun.Hero.BoonData.ReplaceChance = restoreChance
-    end
+    -- Consume pending state unconditionally to prevent stale values on next call.
+    local allowed = lootData._BoonBans_PendingAllowed or {}
+    local fullCount = lootData._BoonBans_PendingFullCount or 0
+    lootData._BoonBans_PendingAllowed = nil
+    lootData._BoonBans_PendingFullCount = nil
+
+    -- Consume duo/legendary queue early so we have rarity info available during injection.
+    local duoLegendaryQueue = lootData._BoonBans_DuoLegendaryQueue
+    lootData._BoonBans_DuoLegendaryQueue = nil
 
     if not IsBoonBansActive() then return end
-
-    Log("[Micro] Applying forced Epic rarity to specific traits (if present in loot).")
 
     local currentGodKey = internal.GetGodFromLootsource(lootData.Name)
     local targetTier = 1
@@ -249,6 +247,7 @@ modutil.mod.Path.Wrap("SetTraitsOnLoot", function(base, lootData, args)
         targetTier = (internal.GetOrRecalcBoonCounts()[currentGodKey] or 0) + 1
     end
 
+    -- Rarity overrides: force configured rarity on unbanned boons that have a rarity setting.
     for _, item in ipairs(lootData.UpgradeOptions) do
         local name = item.ItemName or item.Name
         local info = internal.FindTraitInfo(name, nil)
@@ -279,43 +278,93 @@ modutil.mod.Path.Wrap("SetTraitsOnLoot", function(base, lootData, args)
         end
     end
 
-    local priorityQueue = CurrentRun._BoonBans_DuoLegendaryQueue
-    if not priorityQueue or #priorityQueue == 0 then
-        CurrentRun._BoonBans_DuoLegendaryQueue = nil
-        return
-    end
+    -- Guarantee: if #allowed <= 2 and any allowed boon is absent from the offer (e.g. displaced
+    -- by the vanilla replacement mechanic or failed the vanilla duo/legendary chance gate),
+    -- inject it by displacing a padding slot. Replacement slots (TraitToReplace) and other
+    -- allowed boons are never displaced.
+    if #allowed <= 2 and #allowed > 0 then
+        -- Build a rarity map from the duo/legendary queue so injected items get correct rarity.
+        local duoRarityMap = {}
+        if duoLegendaryQueue then
+            for _, item in ipairs(duoLegendaryQueue) do
+                if item.ItemName then
+                    duoRarityMap[item.ItemName] = item.rarity
+                end
+            end
+        end
 
-    local existingItems = {}
-    for i, option in ipairs(lootData.UpgradeOptions) do
-        existingItems[option.ItemName] = i
-    end
+        -- Build allowed set for displacement guard (built once before injection starts).
+        local allowedSet = {}
+        for _, item in ipairs(allowed) do
+            local name = item.ItemName or item.Name or item.TraitName
+            if name then allowedSet[name] = true end
+        end
 
-    local maxChoices = GetTotalLootChoices()
-    local slotsToEnforce = math.min(#priorityQueue, maxChoices)
+        -- Track what is currently in the offer.
+        local inOffer = {}
+        for _, item in ipairs(lootData.UpgradeOptions) do
+            local name = item.ItemName or item.Name
+            if name then inOffer[name] = true end
+        end
 
-    for i = 1, slotsToEnforce do
-        local queueItem = priorityQueue[i]
-        if not existingItems[queueItem.ItemName] then
-            local targetSlot = #lootData.UpgradeOptions
-            if targetSlot < maxChoices then
-                targetSlot = targetSlot + 1
+        -- Find the single vanilla replacement slot (first TraitToReplace item). Only this
+        -- index is protected from displacement — not all items with TraitToReplace.
+        local replacementIdx = nil
+        for i, item in ipairs(lootData.UpgradeOptions) do
+            if item.TraitToReplace then
+                replacementIdx = i
+                break
+            end
+        end
+
+        local maxChoices = GetTotalLootChoices()
+
+        local function injectAllowedBoon(name)
+            local duoRarity = duoRarityMap[name]
+            local newOption = { ItemName = name, Type = "Trait" }
+            if duoRarity then
+                newOption.Rarity = duoRarity
+                newOption.ForceRarity = true
             end
 
-            local newOption = {
-                ItemName = queueItem.ItemName,
-                Type = "Trait",
-                Rarity = queueItem.rarity,
-                ForceRarity = true,
-            }
-            lootData.UpgradeOptions[targetSlot] = newOption
-            existingItems[queueItem.ItemName] = targetSlot
+            if #lootData.UpgradeOptions < maxChoices then
+                table.insert(lootData.UpgradeOptions, newOption)
+                inOffer[name] = true
+                Log("[Micro] Injected allowed boon '%s' into empty slot", name)
+            else
+                -- Displace the last padding slot: not the protected replacement index, not an allowed boon.
+                local displaceIdx = nil
+                for i = #lootData.UpgradeOptions, 1, -1 do
+                    local item = lootData.UpgradeOptions[i]
+                    local itemName = item.ItemName or item.Name
+                    if itemName and i ~= replacementIdx and not allowedSet[itemName] then
+                        displaceIdx = i
+                        break
+                    end
+                end
+                if displaceIdx then
+                    lootData.UpgradeOptions[displaceIdx] = newOption
+                    inOffer[name] = true
+                    Log("[Micro] Injected allowed boon '%s' into slot %d (displaced padding)", name, displaceIdx)
+                end
+            end
+        end
 
-            Log("[Micro] Forced missing item '%s' into Slot %d", queueItem.ItemName, targetSlot)
+        for _, allowedItem in ipairs(allowed) do
+            local name = allowedItem.ItemName or allowedItem.Name or allowedItem.TraitName
+            if name and not inOffer[name] then
+                injectAllowedBoon(name)
+            end
         end
     end
 
-    lootData.BlockReroll = false
-    CurrentRun._BoonBans_DuoLegendaryQueue = nil
+    -- BlockReroll: vanilla sets this to true when its internal pool is exhausted, but our
+    -- GetEligibleUpgrades filter makes the pool look artificially empty. Use fullCount
+    -- (the unfiltered eligible pool size) as the real signal: if the full pool is larger
+    -- than the offer, a reroll can surface different choices.
+    if fullCount > GetTotalLootChoices() then
+        lootData.BlockReroll = false
+    end
 end)
 
 modutil.mod.Path.Wrap("IsTraitEligible", function(base, traitData, args)

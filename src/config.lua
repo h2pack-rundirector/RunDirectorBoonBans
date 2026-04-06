@@ -3,8 +3,7 @@ return {
     DebugMode = false,
 
     EnablePadding = false,
-    Padding_UsePriority = true,
-    Padding_PriorityChance = 75,
+    Padding_PrioritizeCoreForFirstN = 1,
     Padding_AvoidFutureAllowed = true,
     Padding_AllowDuos = false,
 
