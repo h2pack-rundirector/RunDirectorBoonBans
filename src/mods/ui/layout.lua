@@ -49,23 +49,14 @@ function uiData.DrawDomainTab(ui, uiState, tabName)
 end
 
 function uiData.DrawMainContent(ui, uiState)
-    if ui.BeginTabBar("BoonSubTabs") then
-        for _, tabName in ipairs(uiData.MAIN_TABS) do
-            if ui.BeginTabItem(tabName) then
-                if tabName == "Settings" then
-                    uiData.DrawSettingsTab(ui, uiState)
-                else
-                    uiData.DrawDomainTab(ui, uiState, tabName)
-                end
-                ui.EndTabItem()
-            end
-        end
-        ui.EndTabBar()
+    local mainTabsNode = uiData.GetMainTabsNode()
+    if mainTabsNode then
+        lib.drawUiNode(ui, mainTabsNode, uiState, nil, internal.definition.customTypes)
     end
 end
 
 function internal.DrawTab(ui, uiState)
-    uiData.RefreshFrameState()
+    uiData.RefreshFrameState(uiState)
     uiData.DrawMainContent(ui, uiState)
 end
 
@@ -80,11 +71,5 @@ function internal.DrawQuickContent(ui, uiState, theme)
     if padChanged then
         uiState.set("EnablePadding", padVal)
     end
-    uiData.DrawDangerAction(ui, "quick_reset_all", "Reset All", "Confirm Reset All", function()
-        local bansChanged = internal.ResetAllBans(uiState)
-        internal.ResetAllRarity(uiState)
-        if bansChanged then
-            internal.RecalculateBannedCounts(uiState)
-        end
-    end)
+    lib.drawUiNode(ui, uiData.GetQuickResetNode(), uiState, nil, internal.definition.customTypes)
 end

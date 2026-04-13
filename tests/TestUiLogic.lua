@@ -65,28 +65,3 @@ function TestUiViews:testBuildRarityRowsExcludesSpecialBoonTypes()
     lu.assertEquals(names, { "Strike", "Cast" })
 end
 
-function TestUiViews:testDoesBoonPassBanFilterSupportsTextAndModes()
-    local boons = self.internal.godInfo.Apollo.boons
-    local strike = boons[1]
-    local duo = boons[2]
-
-    self.ui.banFilterState.text = "strike"
-    self.ui.banFilterState.textLower = "strike"
-    self.ui.banFilterState.mode = "all"
-    lu.assertTrue(self.ui.DoesBoonPassBanFilter(strike, true))
-    lu.assertFalse(self.ui.DoesBoonPassBanFilter(duo, false))
-
-    self.ui.banFilterState.text = ""
-    self.ui.banFilterState.textLower = ""
-    self.ui.banFilterState.mode = "banned"
-    lu.assertTrue(self.ui.DoesBoonPassBanFilter(strike, true))
-    lu.assertFalse(self.ui.DoesBoonPassBanFilter(strike, false))
-
-    self.ui.banFilterState.mode = "allowed"
-    lu.assertTrue(self.ui.DoesBoonPassBanFilter(strike, false))
-    lu.assertFalse(self.ui.DoesBoonPassBanFilter(strike, true))
-
-    self.ui.banFilterState.mode = "special"
-    lu.assertFalse(self.ui.DoesBoonPassBanFilter(strike, false))
-    lu.assertTrue(self.ui.DoesBoonPassBanFilter(duo, false))
-end

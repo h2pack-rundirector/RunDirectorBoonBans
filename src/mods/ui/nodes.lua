@@ -1,21 +1,19 @@
 local internal = RunDirectorBoonBans_Internal
 local uiData = internal.ui
-local band = bit32.band
-local bnot = bit32.bnot
-local lshift = bit32.lshift
 
 internal.uiNodes = {
     banPanels = {},
-    banLists = {},
-    banControls = {},
     bridalGlowPanels = {},
+    mainTabs = nil,
     domainTabs = {},
     rootViewTabs = {},
     rarityPanels = {},
     rarityBadges = {},
+    forceRarityBadges = {},
     forcePanels = {},
     npcRegionFilterPanel = nil,
     settingsPanel = nil,
+    quickResetNode = nil,
 }
 local nodeCache = internal.uiNodes
 
@@ -44,8 +42,8 @@ local RARITY_COLUMNS = {
 
 local FORCE_COLUMNS = {
     { name = "label", start = 0 },
-    { name = "control", start = 84, width = 220 },
-    { name = "status", start = 320, width = 120 },
+    { name = "control", start = 84, width = 200 },
+    { name = "status", start = 296, width = 140 },
 }
 
 local SETTINGS_COLUMNS = {
@@ -61,22 +59,6 @@ local ROOT_DETAIL_HEADER_COLUMNS = {
     { name = "summary", start = 220 },
 }
 
-local function GetCurrentBridalGlowTargetLabel(uiState)
-    local selectedBoonKey = uiState and uiState.view and uiState.view.BridalGlowTargetBoon or ""
-    if selectedBoonKey == nil or selectedBoonKey == "" then
-        return nil
-    end
-
-    local eligibleRoots = uiData.GetVisibleRoots("Olympians", uiState)
-    for _, root in ipairs(eligibleRoots or uiData.EMPTY_LIST) do
-        local boon = uiData.FindBoonByKey(root.primaryScopeKey, selectedBoonKey)
-        if boon and uiData.IsBridalGlowEligibleBoon(boon) then
-            return boon.BridalGlowLabel or uiData.GetBoonText(boon)
-        end
-    end
-    return nil
-end
-
 local function PrepareNode(node, label)
     lib.prepareUiNode(
         node,
@@ -84,6 +66,30 @@ local function PrepareNode(node, label)
         internal.definition.storage,
         internal.definition.customTypes)
     return node
+end
+
+local function BuildRarityBadgeSpec(alias)
+    if type(alias) ~= "string" or alias == "" then
+        return nil
+    end
+
+    return {
+        type = "stepper",
+        binds = { value = alias },
+        label = "",
+        min = 0,
+        max = 3,
+        step = 1,
+        displayValues = uiData.RARITY_LABELS,
+        valueColors = uiData.RARITY_COLORS,
+        geometry = {
+            slots = {
+                { name = "decrement", start = 0 },
+                { name = "value", start = 10, width = 100, align = "center" },
+                { name = "increment", start = 100 },
+            },
+        },
+    }
 end
 
 function uiData.GetRarityBadgeNode(alias)
@@ -96,81 +102,24 @@ function uiData.GetRarityBadgeNode(alias)
         return node
     end
 
-    node = PrepareNode({
-        type = "rarityBadge",
-        binds = { value = alias },
-    }, "BoonBans rarityBadge " .. alias)
+    node = PrepareNode(BuildRarityBadgeSpec(alias), "BoonBans rarityBadge " .. alias)
     nodeCache.rarityBadges[alias] = node
     return node
 end
 
-function uiData.DrawRarityBadgeNode(ui, alias, uiState, rowKey)
-    local node = uiData.GetRarityBadgeNode(alias)
-    if not node then
-        return false
+function uiData.GetForceRarityBadgeNode(alias)
+    if type(alias) ~= "string" or alias == "" then
+        return nil
     end
 
-    ui.PushID(rowKey or alias)
-    local changed = lib.drawUiNode(ui, node, uiState, nil, internal.definition.customTypes)
-    ui.PopID()
-    return changed
-end
-
-local function GetForceStatusTextKey(scopeKey)
-    return tostring(scopeKey) .. "::status_text"
-end
-
-local function GetForceStatusBadgeKey(scopeKey, boonKey)
-    return tostring(scopeKey) .. "::badge::" .. tostring(boonKey)
-end
-
-local function GetForceStatusMode(scopeKey, rarityScopeKey, uiState)
-    local currentMask = internal.GetBanConfig(scopeKey, uiState)
-    local forcedBoon, isNone, isCustom = uiData.GetForcedBoonSelection(scopeKey, currentMask)
-    if isNone or isCustom or not forcedBoon then
-        return {
-            kind = "empty",
-            boonKey = nil,
-        }
+    local node = nodeCache.forceRarityBadges[alias]
+    if node then
+        return node
     end
 
-    local rarityAlias = rarityScopeKey
-        and uiData.IsRarityEligibleBoon(forcedBoon)
-        and internal.GetRarityAlias(rarityScopeKey, forcedBoon.Key)
-        or nil
-    if rarityAlias then
-        return {
-            kind = "rarityBadge",
-            boonKey = forcedBoon.Key,
-            rarityAlias = rarityAlias,
-        }
-    end
-
-    return {
-        kind = "text",
-        boonKey = forcedBoon.Key,
-    }
-end
-
-local function BuildForcePanelRuntimeLayout(root, uiState)
-    local runtimeLayout = { children = {} }
-
-    for _, scope in ipairs(root.scopes or uiData.EMPTY_LIST) do
-        local mode = GetForceStatusMode(scope.key, root.hasRarity and root.primaryScopeKey or nil, uiState)
-        local textKey = GetForceStatusTextKey(scope.key)
-        runtimeLayout.children[textKey] = { hidden = mode.kind ~= "text" }
-
-        for _, boon in ipairs(uiData.GetScopeBoons(scope.key)) do
-            if uiData.IsRarityEligibleBoon(boon) then
-                local badgeKey = GetForceStatusBadgeKey(scope.key, boon.Key)
-                runtimeLayout.children[badgeKey] = {
-                    hidden = not (mode.kind == "rarityBadge" and mode.boonKey == boon.Key),
-                }
-            end
-        end
-    end
-
-    return runtimeLayout
+    node = PrepareNode(BuildRarityBadgeSpec(alias), "BoonBans forceRarityBadge " .. alias)
+    nodeCache.forceRarityBadges[alias] = node
+    return node
 end
 
 function uiData.GetRarityPanelNode(root)
@@ -189,13 +138,13 @@ function uiData.GetRarityPanelNode(root)
             children[#children + 1] = {
                 type = "text",
                 text = row.name or row.key or row.alias,
-                panel = { column = "label", line = lineIndex, slots = { "value" } },
+                panel = { column = "label", line = lineIndex },
             }
-            children[#children + 1] = {
-                type = "rarityBadge",
-                binds = { value = row.alias },
-                panel = { column = "control", line = lineIndex },
-            }
+            local rarityNode = uiData.GetRarityBadgeNode(row.alias)
+            if rarityNode then
+                rarityNode.panel = { column = "control", line = lineIndex }
+                children[#children + 1] = rarityNode
+            end
         end
     end
 
@@ -208,30 +157,6 @@ function uiData.GetRarityPanelNode(root)
     return node
 end
 
-function uiData.GetBanListNode(scopeKey)
-    if type(scopeKey) ~= "string" or scopeKey == "" then
-        return nil
-    end
-
-    local node = nodeCache.banLists[scopeKey]
-    if node then
-        return node
-    end
-
-    local rootAlias = internal.GetBanRootAlias(scopeKey)
-    local slotCount = #uiData.GetBanRows(scopeKey)
-    if type(rootAlias) ~= "string" or rootAlias == "" or slotCount < 1 then
-        return nil
-    end
-
-    node = PrepareNode({
-        type = "packedCheckboxList",
-        binds = { value = rootAlias },
-        slotCount = slotCount,
-    }, "BoonBans banList " .. scopeKey)
-    nodeCache.banLists[scopeKey] = node
-    return node
-end
 
 local function BuildBanControlsPanelSpec(scopeKey)
     local displayValues = {}
@@ -244,23 +169,10 @@ local function BuildBanControlsPanelSpec(scopeKey)
         columns = BANS_CONTROL_COLUMNS,
         children = {
             {
-                type = "dynamicText",
-                getText = function(_, uiState)
-                    local listNode = uiData.GetBanListNode(scopeKey)
-                    local summary = listNode
-                        and lib.getWidgetSummary(listNode, uiState, nil, internal.definition.customTypes)
-                        or nil
-                    local data = summary and summary.data or nil
-                    if data then
-                        return uiData.FormatCountLabel(data.checkedCount or 0, data.totalCount or 0)
-                    end
-                    local banned, total = uiData.GetScopeSummary(scopeKey, uiState)
-                    return uiData.FormatCountLabel(banned, total)
-                end,
-                getColor = function()
-                    return { 0.6, 0.6, 0.6, 1.0 }
-                end,
-                panel = { column = "summary", line = 1, slots = { "value" } },
+                type = "text",
+                binds = { value = uiData.GetBanSummaryAlias(scopeKey) },
+                color = uiData.MUTED_TEXT_COLOR,
+                panel = { column = "summary", line = 1 },
             },
             {
                 type = "button",
@@ -268,7 +180,7 @@ local function BuildBanControlsPanelSpec(scopeKey)
                 onClick = function(uiState)
                     internal.BanAllGodBans(scopeKey, uiState)
                 end,
-                panel = { column = "primary", line = 1, slots = { "control" } },
+                panel = { column = "primary", line = 1 },
             },
             {
                 type = "button",
@@ -276,17 +188,23 @@ local function BuildBanControlsPanelSpec(scopeKey)
                 onClick = function(uiState)
                     internal.ResetGodBans(scopeKey, uiState)
                 end,
-                panel = { column = "secondary", line = 1, slots = { "control" } },
+                panel = { column = "secondary", line = 1 },
             },
             {
                 type = "text",
                 text = "Filter:",
-                panel = { column = "filterLabel", line = 2, slots = { "value" } },
+                panel = { column = "filterLabel", line = 2 },
             },
             {
                 type = "inputText",
                 binds = { value = uiData.BAN_FILTER_TEXT_ALIAS },
-                panel = { column = "filterInput", line = 2, slots = { "control" } },
+                label = "",
+                geometry = {
+                    slots = {
+                        { name = "control", width = 180 },
+                    },
+                },
+                panel = { column = "filterInput", line = 2 },
             },
             {
                 type = "button",
@@ -295,41 +213,25 @@ local function BuildBanControlsPanelSpec(scopeKey)
                     uiState.reset(uiData.BAN_FILTER_TEXT_ALIAS)
                     uiState.reset(uiData.BAN_FILTER_MODE_ALIAS)
                 end,
-                panel = { column = "filterClear", line = 2, slots = { "control" } },
+                panel = { column = "filterClear", line = 2 },
             },
             {
                 type = "radio",
                 binds = { value = uiData.BAN_FILTER_MODE_ALIAS },
                 label = "",
-                values = { "all", "banned", "allowed", "special" },
+                values = { "all", "checked", "unchecked" },
                 displayValues = displayValues,
                 geometry = {
                     slots = {
                         { name = "option:1", line = 1, start = 0 },
                         { name = "option:2", line = 1, start = 56 },
                         { name = "option:3", line = 1, start = 136 },
-                        { name = "option:4", line = 1, start = 220 },
                     },
                 },
                 panel = { column = "filterMode", line = 2 },
             },
         },
     }
-end
-
-function uiData.GetBanControlsPanelNode(scopeKey)
-    if type(scopeKey) ~= "string" or scopeKey == "" then
-        return nil
-    end
-
-    local node = nodeCache.banControls[scopeKey]
-    if node then
-        return node
-    end
-
-    node = PrepareNode(BuildBanControlsPanelSpec(scopeKey), "BoonBans banControls " .. scopeKey)
-    nodeCache.banControls[scopeKey] = node
-    return node
 end
 
 function uiData.GetBanPanelNode(scopeKey)
@@ -350,9 +252,22 @@ function uiData.GetBanPanelNode(scopeKey)
         panel = { column = "content", line = 2 },
     }
     children[#children + 1] = {
-        type = "banList",
-        scopeKey = scopeKey,
+        type = "packedCheckboxList",
+        binds = {
+            value = internal.GetBanRootAlias(scopeKey),
+            filterText = uiData.BAN_FILTER_TEXT_ALIAS,
+            filterMode = uiData.BAN_FILTER_MODE_ALIAS,
+        },
+        valueColors = uiData.BuildPackedBanValueColors(scopeKey),
+        slotCount = #(uiData.GetScopeBoons(scopeKey) or uiData.EMPTY_LIST),
         panel = { column = "content", line = 3 },
+    }
+    children[#children + 1] = {
+        type = "text",
+        binds = { value = uiData.GetBanEmptyStateAlias(scopeKey) },
+        color = uiData.MUTED_TEXT_COLOR,
+        visibleIf = { alias = uiData.GetBanEmptyStateAlias(scopeKey), value = "No boons match the current filter." },
+        panel = { column = "content", line = 4 },
     }
 
     node = PrepareNode({
@@ -381,22 +296,16 @@ function uiData.GetBridalGlowPanelNode(root)
             {
                 type = "text",
                 text = "Choose the Olympian god and boon pool Bridal Glow can target.",
-                panel = { column = "content", line = 1, slots = { "value" } },
+                panel = { column = "content", line = 1 },
             },
             {
-                type = "dynamicText",
-                getText = function(_, uiState)
-                    local currentLabel = GetCurrentBridalGlowTargetLabel(uiState)
-                    if currentLabel and currentLabel ~= "" then
-                        return "Current Target: " .. currentLabel
-                    end
-                    return "Current Target: Random"
-                end,
-                panel = { column = "content", line = 2, slots = { "value" } },
+                type = "text",
+                binds = { value = uiData.BRIDAL_GLOW_TARGET_TEXT_ALIAS },
+                panel = { column = "content", line = 2 },
             },
             {
                 type = "bridalGlowPicker",
-                panel = { column = "content", line = 3, slots = { "value" } },
+                panel = { column = "content", line = 3 },
             },
         },
     }, "BoonBans bridalGlowPanel " .. root.id)
@@ -427,16 +336,18 @@ function uiData.GetRootViewsTabsNode(root)
             local rarityRows = uiData.GetRarityRows(root)
             if #rarityRows == 0 then
                 child = {
-                    type = "disabledText",
+                    type = "text",
                     text = "No rarity-configurable boons for this root.",
+                    color = uiData.MUTED_TEXT_COLOR,
                 }
             elseif root.isTiered then
                 child = {
                     type = "group",
                     children = {
                         {
-                            type = "disabledText",
+                            type = "text",
                             text = "Rarity applies across all tiers for this root.",
+                            color = uiData.MUTED_TEXT_COLOR,
                         },
                         {
                             type = "separator",
@@ -479,29 +390,40 @@ function uiData.GetForcePanelNode(root)
     for lineIndex, scope in ipairs(root.scopes or {}) do
         local bindAlias = internal.GetBanRootAlias(scope.key)
         if bindAlias then
-            children[#children + 1] = {
+            local rowChildren = {}
+            rowChildren[#rowChildren + 1] = {
                 type = "text",
                 text = scope.label,
-                panel = { column = "label", line = lineIndex, slots = { "value" } },
+                panel = { column = "label", line = 1 },
             }
-            children[#children + 1] = {
+            rowChildren[#rowChildren + 1] = {
                 type = "mappedDropdown",
                 binds = { value = bindAlias },
+                label = "",
                 getPreview = function(_, bound)
                     local currentMask = bound.value:get() or 0
                     local forcedBoon, isNone, isCustom = uiData.GetForcedBoonSelection(scope.key, currentMask)
                     return isNone and "None"
-                        or isCustom and "<custom>"
+                        or isCustom and "Multiple"
                         or uiData.GetForcedBoonDisplayLabel(forcedBoon)
+                end,
+                getPreviewColor = function(_, bound)
+                    local currentMask = bound.value:get() or 0
+                    local forcedBoon, isNone, isCustom = uiData.GetForcedBoonSelection(scope.key, currentMask)
+                    if isNone or isCustom then
+                        return nil
+                    end
+                    return uiData.GetBoonMarkerColor(forcedBoon)
                 end,
                 getOptions = function(_, bound)
                     local meta = uiData.GetRootMeta(scope.key)
                     local packedConfig = meta and meta.packedConfig or nil
-                    local fullMask = packedConfig and (lshift(1, packedConfig.bits) - 1) or 0
+                    local fullMask = packedConfig and (bit32.lshift(1, packedConfig.bits) - 1) or 0
                     local currentMask = bound.value:get() or 0
                     local forcedBoon, isNone = uiData.GetForcedBoonSelection(scope.key, currentMask)
                     local options = {
                         {
+                            id = "none",
                             label = "None",
                             selected = isNone == true,
                             onSelect = function(_, boundValue)
@@ -515,10 +437,12 @@ function uiData.GetForcePanelNode(root)
                     }
                     for _, boon in ipairs(uiData.GetScopeBoons(scope.key)) do
                         options[#options + 1] = {
+                            id = boon.Key,
                             label = uiData.GetForcedBoonDisplayLabel(boon),
+                            color = uiData.GetBoonMarkerColor(boon),
                             selected = forcedBoon and boon.Key == forcedBoon.Key or false,
                             onSelect = function(_, boundValue)
-                                local nextMask = band(fullMask, bnot(boon.Mask))
+                                local nextMask = bit32.band(fullMask, bit32.bnot(boon.Mask))
                                 if nextMask ~= currentMask then
                                     boundValue:set(nextMask)
                                     return true
@@ -529,61 +453,36 @@ function uiData.GetForcePanelNode(root)
                     end
                     return options
                 end,
-                panel = { column = "control", line = lineIndex, slots = { "control" } },
-            }
-            children[#children + 1] = {
-                type = "dynamicText",
-                getText = function(_, uiState)
-                    local currentMask = internal.GetBanConfig(scope.key, uiState)
-                    local forcedBoon, isNone, isCustom = uiData.GetForcedBoonSelection(scope.key, currentMask)
-                    if isNone or isCustom or not forcedBoon then
-                        return ""
-                    end
-                    return uiData.GetForcedBoonStatusText(forcedBoon)
-                end,
-                panel = {
-                    column = "status",
-                    line = lineIndex,
-                    slots = { "value" },
-                    key = GetForceStatusTextKey(scope.key),
+                geometry = {
+                    slots = {
+                        { name = "control", width = 200 },
+                    },
                 },
+                panel = { column = "control", line = 1 },
             }
-
-            if root.hasRarity then
-                for _, boon in ipairs(uiData.GetScopeBoons(scope.key)) do
-                    if uiData.IsRarityEligibleBoon(boon) then
-                        local rarityAlias = internal.GetRarityAlias(root.primaryScopeKey, boon.Key)
-                        if rarityAlias then
-                            children[#children + 1] = {
-                                type = "rarityBadge",
-                                binds = { value = rarityAlias },
-                                panel = {
-                                    column = "status",
-                                    line = lineIndex,
-                                    key = GetForceStatusBadgeKey(scope.key, boon.Key),
-                                },
-                            }
-                        end
-                    end
-                end
-            end
+              if root.hasRarity then
+                  rowChildren[#rowChildren + 1] = {
+                     type = "forceRarityStatus",
+                     binds = { value = bindAlias },
+                     forceScopeKey = scope.key,
+                     rarityScopeKey = root.primaryScopeKey,
+                     panel = { column = "status", line = 1 },
+                  }
+              end
+            children[#children + 1] = {
+                type = "panel",
+                columns = FORCE_COLUMNS,
+                children = rowChildren,
+            }
         end
     end
 
     node = PrepareNode({
-        type = "panel",
-        columns = FORCE_COLUMNS,
+        type = "group",
         children = children,
     }, "BoonBans forcePanel " .. root.id)
     nodeCache.forcePanels[root.id] = node
     return node
-end
-
-function uiData.GetForcePanelRuntimeLayout(root, uiState)
-    if type(root) ~= "table" or type(root.id) ~= "string" or root.id == "" then
-        return nil
-    end
-    return BuildForcePanelRuntimeLayout(root, uiState)
 end
 
 function uiData.GetSettingsPanelNode()
@@ -599,16 +498,43 @@ function uiData.GetSettingsPanelNode()
                 type = "checkbox",
                 binds = { value = "EnablePadding" },
                 label = "Enable Padding",
-                panel = { column = "content", line = 1, slots = { "control" } },
+                panel = { column = "content", line = 1 },
             },
             {
-                type = "disabledText",
+                type = "text",
                 text = "Fills up menus to ensure enough options are available.",
-                panel = { column = "content", line = 2, slots = { "value" } },
+                color = uiData.MUTED_TEXT_COLOR,
+                panel = { column = "content", line = 2 },
             },
             {
-                type = "paddingOptions",
-                panel = { column = "content", line = 3, slots = { "value" } },
+                type = "group",
+                visibleIf = "EnablePadding",
+                panel = { column = "content", line = 3 },
+                children = {
+                    {
+                        type = "stepper",
+                        binds = { value = "Padding_PrioritizeCoreForFirstN" },
+                        label = "Prioritize Core Boons for First N",
+                        min = 0,
+                        max = 15,
+                        step = 1,
+                    },
+                    {
+                        type = "text",
+                        text = "(0 = disabled, N = prefer core boons in padding for the first N picks from each god.)",
+                        color = uiData.MUTED_TEXT_COLOR,
+                    },
+                    {
+                        type = "checkbox",
+                        binds = { value = "Padding_AvoidFutureAllowed" },
+                        label = "Avoid 'Future Allowed' Items",
+                    },
+                    {
+                        type = "checkbox",
+                        binds = { value = "Padding_AllowDuos" },
+                        label = "Allow Banned Duos/Legendaries",
+                    },
+                },
             },
             {
                 type = "separator",
@@ -621,12 +547,13 @@ function uiData.GetSettingsPanelNode()
                 min = 0,
                 max = 15,
                 step = 1,
-                panel = { column = "content", line = 5, slots = { "label", "decrement", "value", "increment" } },
+                panel = { column = "content", line = 5 },
             },
             {
-                type = "disabledText",
+                type = "text",
                 text = "(Improve the rarity of offered boons unless specifically forced by config.)",
-                panel = { column = "content", line = 6, slots = { "value" } },
+                color = uiData.MUTED_TEXT_COLOR,
+                panel = { column = "content", line = 6 },
             },
             {
                 type = "separator",
@@ -642,7 +569,7 @@ function uiData.GetSettingsPanelNode()
                         internal.RecalculateBannedCounts(uiState)
                     end
                 end,
-                panel = { column = "content", line = 8, slots = { "control" } },
+                panel = { column = "content", line = 8 },
             },
             {
                 type = "confirmButton",
@@ -652,7 +579,7 @@ function uiData.GetSettingsPanelNode()
                 onConfirm = function(uiState)
                     internal.ResetAllRarity(uiState)
                 end,
-                panel = { column = "content", line = 9, slots = { "control" } },
+                panel = { column = "content", line = 9 },
             },
         },
     }, "BoonBans settingsPanel")
@@ -665,17 +592,80 @@ function uiData.GetNpcRegionFilterPanelNode()
         return nodeCache.npcRegionFilterPanel
     end
 
+    local displayValues = {}
+    for _, option in ipairs(uiData.NPC_REGION_OPTIONS) do
+        displayValues[option.value] = option.label
+    end
+
     local node = PrepareNode({
         type = "panel",
         columns = NPC_FILTER_COLUMNS,
         children = {
             {
-                type = "npcRegionFilter",
-                panel = { column = "content", line = 1, slots = { "value" } },
+                type = "radio",
+                binds = { value = uiData.NPC_VIEW_REGION_ALIAS },
+                label = "Filter NPC Sources:",
+                values = { 1, 2, 3, 4 },
+                displayValues = displayValues,
+                geometry = {
+                    slots = {
+                        { name = "option:1", line = 1, start = 140 },
+                        { name = "option:2", line = 1, start = 240 },
+                        { name = "option:3", line = 1, start = 340 },
+                        { name = "option:4", line = 1, start = 440 },
+                    },
+                },
+                panel = { column = "content", line = 1 },
             },
         },
     }, "BoonBans npcRegionFilterPanel")
     nodeCache.npcRegionFilterPanel = node
+    return node
+end
+
+function uiData.GetQuickResetNode()
+    if nodeCache.quickResetNode then
+        return nodeCache.quickResetNode
+    end
+
+    local node = PrepareNode({
+        type = "confirmButton",
+        label = "Reset All",
+        confirmLabel = "Confirm Reset All",
+        timeoutSeconds = uiData.CONFIRM_TIMEOUT,
+        onConfirm = function(uiState)
+            local bansChanged = internal.ResetAllBans(uiState)
+            internal.ResetAllRarity(uiState)
+            if bansChanged then
+                internal.RecalculateBannedCounts(uiState)
+            end
+        end,
+    }, "BoonBans quickResetNode")
+    nodeCache.quickResetNode = node
+    return node
+end
+
+function uiData.GetMainTabsNode()
+    if nodeCache.mainTabs then
+        return nodeCache.mainTabs
+    end
+
+    local children = {}
+    for _, tabName in ipairs(uiData.MAIN_TABS) do
+        children[#children + 1] = {
+            type = "mainTabContent",
+            tabName = tabName,
+            tabLabel = tabName,
+            tabId = tabName,
+        }
+    end
+
+    local node = PrepareNode({
+        type = "horizontalTabs",
+        id = "BoonSubTabs",
+        children = children,
+    }, "BoonBans mainTabs")
+    nodeCache.mainTabs = node
     return node
 end
 
@@ -685,16 +675,17 @@ local function BuildRootDetailHeaderSpec(root, uiState)
             type = "text",
             text = root.displayLabel,
             color = uiData.GetSourceColor(root.primaryScopeKey),
-            panel = { column = "title", line = 1, slots = { "value" } },
+            panel = { column = "title", line = 1 },
         },
     }
 
     local headerSummary = uiData.GetRootHeaderSummary(root, uiState)
     if type(headerSummary) == "string" and headerSummary ~= "" then
         headerChildren[#headerChildren + 1] = {
-            type = "disabledText",
+            type = "text",
             text = headerSummary,
-            panel = { column = "summary", line = 1, slots = { "value" } },
+            color = uiData.MUTED_TEXT_COLOR,
+            panel = { column = "summary", line = 1 },
         }
     end
 
@@ -721,6 +712,7 @@ local function BuildRootDetailSpec(root, uiState)
         type = "group",
         tabLabel = uiData.GetSelectorLabel(root, uiState),
         tabId = root.id,
+        tabLabelColor = uiData.GetSourceColor(root.primaryScopeKey),
         children = children,
     }
 end

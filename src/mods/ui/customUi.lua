@@ -1,6 +1,12 @@
 local internal = RunDirectorBoonBans_Internal
 local uiData = internal.ui
 
+local function ContractWarn(fmt, ...)
+    if lib and type(lib.contractWarn) == "function" then
+        lib.contractWarn("run-director", fmt, ...)
+    end
+end
+
 public.definition = public.definition or internal.definition or {}
 internal.definition = public.definition
 
@@ -74,80 +80,8 @@ local function EnsureBridalGlowRootSelection(roots, selectedBoonKey)
     return fallback
 end
 
-local function GetCurrentBridalGlowTarget(eligibleRoots, selectedBoonKey)
-    if selectedBoonKey == nil or selectedBoonKey == "" then
-        return nil
-    end
-
-    for _, root in ipairs(eligibleRoots) do
-        local boon = uiData.FindBoonByKey(root.primaryScopeKey, selectedBoonKey)
-        if boon and uiData.IsBridalGlowEligibleBoon(boon) then
-            boon.BridalGlowLabel = boon.BridalGlowLabel or uiData.GetBoonText(boon)
-            return boon
-        end
-    end
-    return nil
-end
-
 public.definition.customTypes = {
     widgets = {
-        disabledText = {
-            binds = {},
-            slots = { "value" },
-            validate = function(node, _)
-                if type(node.text) ~= "string" then
-                    node.text = tostring(node.text or "")
-                end
-            end,
-            draw = function(ui, node)
-                return lib.drawWidgetSlots(ui, node, {
-                    {
-                        name = "value",
-                        draw = function(imgui)
-                            imgui.TextDisabled(node.text or "")
-                            return false
-                        end,
-                    },
-                })
-            end,
-        },
-        banList = {
-            binds = {},
-            slots = { "value" },
-            validate = function(node, _)
-                if type(node.scopeKey) ~= "string" or node.scopeKey == "" then
-                    node.scopeKey = nil
-                end
-            end,
-            draw = function(ui, node, _, _, uiState)
-                if not node.scopeKey then
-                    return false
-                end
-
-                local currentBans = internal.GetBanConfig(node.scopeKey, uiState)
-                local listNode = uiData.GetBanListNode(node.scopeKey)
-                local runtimeGeometry, visibleCount = uiData.GetBanListGeometry(node.scopeKey, currentBans, uiState)
-                local changed = false
-
-                if listNode then
-                    ui.PushID("banList_" .. node.scopeKey)
-                    changed = lib.drawUiNode(
-                        ui,
-                        listNode,
-                        uiState,
-                        nil,
-                        internal.definition.customTypes,
-                        runtimeGeometry)
-                    ui.PopID()
-                end
-
-                if (visibleCount or 0) == 0 then
-                    ui.TextDisabled("No boons match the current filter.")
-                end
-
-                return changed
-            end,
-        },
         bridalGlowPicker = {
             binds = {},
             slots = { "value" },
@@ -212,130 +146,55 @@ public.definition.customTypes = {
                 })
             end,
         },
-        rarityBadge = {
-            binds = { value = { storageType = "int" } },
-            slots = { "decrement", "value", "increment" },
-            defaultGeometry = {
-                slots = {
-                    { name = "decrement", start = 0 },
-                    { name = "value", start = 10, width = 100, align = "center" },
-                    { name = "increment", start = 100 },
-                },
-            },
-            validate = function(_, _) end,
-            draw = function(ui, node, bound)
-                local uiMod = internal.ui
-                local current = bound.value:get() or 0
-                if current < 0 then current = 0 end
-                if current > 3 then current = 3 end
-                local label = uiMod.RARITY_LABELS[current] or "Auto"
-                local color = uiMod.RARITY_COLORS[current] or uiMod.RARITY_COLORS[0]
-                local nextValue = current
-                lib.drawWidgetSlots(ui, node, {
-                    {
-                        name = "decrement",
-                        draw = function(imgui)
-                            if imgui.Button("-") and current > 0 then
-                                nextValue = current - 1
-                            end
-                            return false
-                        end,
-                    },
-                    {
-                        name = "value",
-                        sameLine = true,
-                        draw = function(imgui, slot)
-                            lib.alignSlotContent(imgui, slot,
-                                type(imgui.CalcTextSize) == "function" and imgui.CalcTextSize(label) or #(tostring(label)))
-                            uiMod.DrawColoredText(imgui, color, label)
-                            return false
-                        end,
-                    },
-                    {
-                        name = "increment",
-                        sameLine = true,
-                        draw = function(imgui)
-                            if imgui.Button("+") and current < 3 then
-                                nextValue = current + 1
-                            end
-                            return false
-                        end,
-                    },
-                })
-                if nextValue ~= current then bound.value:set(nextValue) end
-            end,
-        },
-        paddingOptions = {
+        mainTabContent = {
             binds = {},
-            slots = { "value" },
-            validate = function(_, _) end,
+            validate = function(node, _)
+                if type(node.tabName) ~= "string" or node.tabName == "" then
+                    node.tabName = nil
+                end
+            end,
             draw = function(ui, node, _, _, uiState)
-                if uiState.view.EnablePadding ~= true then
+                if not node.tabName then
                     return false
                 end
-                return lib.drawWidgetSlots(ui, node, {
-                    {
-                        name = "value",
-                        draw = function(imgui)
-                            local changed = false
-                            imgui.Indent()
-                            local beforePrioritize = uiState.view.Padding_PrioritizeCoreForFirstN
-                            uiData.DrawStepInput(imgui, uiState,
-                                "Prioritize Core Boons for First N",
-                                "Padding_PrioritizeCoreForFirstN", 0, 15, 1)
-                            if uiState.view.Padding_PrioritizeCoreForFirstN ~= beforePrioritize then
-                                changed = true
-                            end
-                            imgui.TextDisabled(
-                                "(0 = disabled, N = prefer core boons in padding for the first N picks from each god.)")
-                            local futureVal, futureChanged = imgui.Checkbox(
-                                "Avoid 'Future Allowed' Items",
-                                uiState.view.Padding_AvoidFutureAllowed ~= false)
-                            if futureChanged then
-                                uiState.set("Padding_AvoidFutureAllowed", futureVal)
-                                changed = true
-                            end
-                            local duoVal, duoChanged = imgui.Checkbox(
-                                "Allow Banned Duos/Legendaries",
-                                uiState.view.Padding_AllowDuos == true)
-                            if duoChanged then
-                                uiState.set("Padding_AllowDuos", duoVal)
-                                changed = true
-                            end
-                            imgui.Unindent()
-                            return changed
-                        end,
-                    },
-                })
+                if node.tabName == "Settings" then
+                    uiData.DrawSettingsTab(ui, uiState)
+                else
+                    uiData.DrawDomainTab(ui, uiState, node.tabName)
+                end
+                return false
             end,
         },
-        npcRegionFilter = {
-            binds = {},
-            slots = { "value" },
-            validate = function(_, _) end,
-            draw = function(ui, node, _, _, uiState)
-                local _ = node
-                local currentRegion = uiState.view[uiData.NPC_VIEW_REGION_ALIAS] or 4
-                return lib.drawWidgetSlots(ui, node, {
-                    {
-                        name = "value",
-                        draw = function(imgui)
-                            local changed = false
-                            imgui.Text("Filter NPC Sources:")
-                            for index, option in ipairs(uiData.NPC_REGION_OPTIONS) do
-                                if imgui.RadioButton(option.label, currentRegion == option.value) then
-                                    uiState.set(uiData.NPC_VIEW_REGION_ALIAS, option.value)
-                                    currentRegion = option.value
-                                    changed = true
-                                end
-                                if index < #uiData.NPC_REGION_OPTIONS then
-                                    imgui.SameLine()
-                                end
-                            end
-                            return changed
-                        end,
-                    },
-                })
+        forceRarityStatus = {
+            binds = {
+                value = { storageType = "int", rootType = "packedInt" },
+            },
+            validate = function(node, prefix)
+                if type(node.forceScopeKey) ~= "string" or node.forceScopeKey == "" then
+                    ContractWarn("%s: forceRarityStatus forceScopeKey must be a non-empty string", prefix)
+                end
+                if type(node.rarityScopeKey) ~= "string" or node.rarityScopeKey == "" then
+                    ContractWarn("%s: forceRarityStatus rarityScopeKey must be a non-empty string", prefix)
+                end
+            end,
+            draw = function(ui, node, bound, width, uiState)
+                local packedMask = bound.value and bound.value:get() or 0
+                local forcedBoon = uiData.GetForcedBoonSelection(node.forceScopeKey, packedMask)
+                if type(forcedBoon) ~= "table" or not uiData.IsRarityEligibleBoon(forcedBoon) then
+                    return false
+                end
+
+                local rarityAlias = internal.GetRarityAlias(node.rarityScopeKey, forcedBoon.Key)
+                if type(rarityAlias) ~= "string" or rarityAlias == "" then
+                    return false
+                end
+
+                local rarityNode = uiData.GetForceRarityBadgeNode(rarityAlias)
+                if not rarityNode then
+                    return false
+                end
+
+                return lib.drawUiNode(ui, rarityNode, uiState, width, internal.definition.customTypes)
             end,
         },
     }

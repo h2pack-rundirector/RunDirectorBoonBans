@@ -330,6 +330,12 @@ function ResetBoonBansUiHarness(opts)
         rarityValues = {}
         return true
     end
+    internal.GetRarityAlias = function(scopeKey, boonKey)
+        return scopeKey .. "_" .. boonKey .. "_Rarity"
+    end
+    internal.GetBanAlias = function(scopeKey, boonKey)
+        return scopeKey .. "_" .. boonKey .. "_Ban"
+    end
 
     import = function(path)
         dofile("src/" .. path)
