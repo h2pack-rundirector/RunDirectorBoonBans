@@ -7,6 +7,17 @@ local function ContractWarn(fmt, ...)
     end
 end
 
+local function ClampRarity(value)
+    local numeric = math.floor(tonumber(value) or 0)
+    if numeric < 0 then
+        return 0
+    end
+    if numeric > 3 then
+        return 3
+    end
+    return numeric
+end
+
 public.definition = public.definition or internal.definition or {}
 internal.definition = public.definition
 
@@ -146,25 +157,6 @@ public.definition.customTypes = {
                 })
             end,
         },
-        mainTabContent = {
-            binds = {},
-            validate = function(node, _)
-                if type(node.tabName) ~= "string" or node.tabName == "" then
-                    node.tabName = nil
-                end
-            end,
-            draw = function(ui, node, _, _, uiState)
-                if not node.tabName then
-                    return false
-                end
-                if node.tabName == "Settings" then
-                    uiData.DrawSettingsTab(ui, uiState)
-                else
-                    uiData.DrawDomainTab(ui, uiState, node.tabName)
-                end
-                return false
-            end,
-        },
         forceRarityStatus = {
             binds = {
                 value = { storageType = "int", rootType = "packedInt" },
@@ -177,9 +169,11 @@ public.definition.customTypes = {
                     ContractWarn("%s: forceRarityStatus rarityScopeKey must be a non-empty string", prefix)
                 end
             end,
-            draw = function(ui, node, bound, width, uiState)
+            draw = function(ui, node, bound, uiState)
                 local packedMask = bound.value and bound.value:get() or 0
                 local forcedBoon = uiData.GetForcedBoonSelection(node.forceScopeKey, packedMask)
+                local startX = type(ui.GetCursorPosX) == "function" and ui.GetCursorPosX() or nil
+                local startY = type(ui.GetCursorPosY) == "function" and ui.GetCursorPosY() or nil
                 if type(forcedBoon) ~= "table" or not uiData.IsRarityEligibleBoon(forcedBoon) then
                     return false
                 end
@@ -189,12 +183,50 @@ public.definition.customTypes = {
                     return false
                 end
 
-                local rarityNode = uiData.GetForceRarityBadgeNode(rarityAlias)
-                if not rarityNode then
-                    return false
+                local currentValue = ClampRarity(uiState and uiState.view and uiState.view[rarityAlias])
+                local changed = false
+                local frameHeight = type(ui.GetFrameHeight) == "function" and ui.GetFrameHeight() or 0
+                local valueSlotStart = startX + 10
+                local valueText = tostring(uiData.RARITY_LABELS[currentValue] or currentValue)
+                local valueColor = uiData.RARITY_COLORS[currentValue]
+                local textWidth = type(ui.CalcTextSize) == "function" and ui.CalcTextSize(valueText) or 0
+                local alignedValueX = valueSlotStart + math.max((100 - textWidth) / 2, 0)
+
+                if type(ui.SetCursorPosY) == "function" then
+                    ui.SetCursorPosY(startY)
+                end
+                ui.SetCursorPosX(startX)
+                if ui.Button("-") and currentValue > 0 then
+                    currentValue = currentValue - 1
+                    uiState.set(rarityAlias, currentValue)
+                    changed = true
                 end
 
-                return lib.drawUiNode(ui, rarityNode, uiState, width, internal.definition.customTypes)
+                if type(ui.SetCursorPosY) == "function" then
+                    ui.SetCursorPosY(startY)
+                end
+                ui.SetCursorPosX(alignedValueX)
+                if type(valueColor) == "table" then
+                    ui.TextColored(valueColor[1], valueColor[2], valueColor[3], valueColor[4], valueText)
+                else
+                    ui.Text(valueText)
+                end
+
+                if type(ui.SetCursorPosY) == "function" then
+                    ui.SetCursorPosY(startY)
+                end
+                ui.SetCursorPosX(startX + 100)
+                if ui.Button("+") and currentValue < 3 then
+                    currentValue = currentValue + 1
+                    uiState.set(rarityAlias, currentValue)
+                    changed = true
+                end
+
+                if type(ui.SetCursorPosY) == "function" then
+                    ui.SetCursorPosY(startY + frameHeight)
+                end
+                ui.SetCursorPosX(startX)
+                return changed
             end,
         },
     }

@@ -3,8 +3,6 @@ local godMeta = internal.godMeta
 local godInfo = internal.godInfo
 local uiData = internal.ui
 
-local ImGuiCol = rom.ImGuiCol
-
 uiData.EMPTY_LIST = {}
 
 uiData.DEFAULT_GOD_COLOR = { 1, 1, 1, 1 }
@@ -90,7 +88,6 @@ uiData.visibleRootsByMainTab = {}
 uiData.bridalGlowEligibleRoots = nil
 uiData.rarityRowsByRoot = {}
 uiData.bridalGlowBoonsByRoot = {}
-uiData.selectedRootByMainTab = {}
 uiData.banFilterState = {
     rootId = nil,
 }
@@ -110,6 +107,10 @@ function uiData.GetBanEmptyStateAlias(scopeKey)
     return "Ui_BanEmptyState_" .. tostring(scopeKey)
 end
 
+function uiData.GetSelectedRootAlias(tabName)
+    return "SelectedRoot_" .. tostring(tabName)
+end
+
 function uiData.GetThemeColors(theme)
     return (theme and theme.colors) or uiData.DEFAULT_THEME_COLORS
 end
@@ -126,18 +127,6 @@ function uiData.GetOrdinal(n)
     if last == 2 then return s .. "nd" end
     if last == 3 then return s .. "rd" end
     return s .. "th"
-end
-
-function uiData.DrawBadge(ui, text, color, tooltip)
-    ui.PushStyleColor(ImGuiCol.Button, color[1], color[2], color[3], 0.2)
-    ui.PushStyleColor(ImGuiCol.ButtonHovered, color[1], color[2], color[3], 0.2)
-    ui.PushStyleColor(ImGuiCol.ButtonActive, color[1], color[2], color[3], 0.2)
-    ui.PushStyleColor(ImGuiCol.Text, 1, 1, 1, 1)
-    ui.Button(text)
-    ui.PopStyleColor(4)
-    if tooltip and ui.IsItemHovered() then
-        ui.SetTooltip(tooltip)
-    end
 end
 
 function uiData.IsRegionMatch(group, regionValue)
@@ -188,6 +177,21 @@ function uiData.FindBoonByKey(scopeKey, boonKey)
     for _, boon in ipairs(uiData.GetScopeBoons(scopeKey)) do
         if boon.Key == boonKey then
             return boon
+        end
+    end
+end
+
+function uiData.FindAnyBoonByKey(boonKey)
+    if type(boonKey) ~= "string" or boonKey == "" then
+        return nil
+    end
+
+    for _, entry in pairs(godInfo) do
+        if type(entry) == "table" and type(entry.boonByKey) == "table" then
+            local boon = entry.boonByKey[boonKey]
+            if boon then
+                return boon
+            end
         end
     end
 end
@@ -303,13 +307,11 @@ function uiData.GetCurrentBridalGlowTargetText(uiState)
         return "Current Target: Random"
     end
 
-    local eligibleRoots = uiData.GetVisibleRoots("Olympians", uiState)
-    for _, root in ipairs(eligibleRoots or uiData.EMPTY_LIST) do
-        local boon = uiData.FindBoonByKey(root.primaryScopeKey, selectedBoonKey)
-        if boon and uiData.IsBridalGlowEligibleBoon(boon) then
-            return "Current Target: " .. (boon.BridalGlowLabel or uiData.GetBoonText(boon))
-        end
+    local boon = uiData.FindAnyBoonByKey(selectedBoonKey)
+    if boon and uiData.IsBridalGlowEligibleBoon(boon) then
+        return "Current Target: " .. (boon.BridalGlowLabel or uiData.GetBoonText(boon))
     end
+
     return "Current Target: Random"
 end
 
@@ -356,12 +358,7 @@ local function BuildDerivedTextEntries()
         alias = uiData.BRIDAL_GLOW_TARGET_TEXT_ALIAS,
         signature = function(uiState)
             local selectedBoonKey = uiState and uiState.view and uiState.view.BridalGlowTargetBoon or ""
-            local eligibleRoots = uiData.GetVisibleRoots("Olympians", uiState)
-            local rootSignature = {}
-            for _, root in ipairs(eligibleRoots or uiData.EMPTY_LIST) do
-                rootSignature[#rootSignature + 1] = root.id
-            end
-            return tostring(selectedBoonKey) .. "|" .. table.concat(rootSignature, ",")
+            return tostring(selectedBoonKey)
         end,
         compute = function(uiState)
             return uiData.GetCurrentBridalGlowTargetText(uiState)

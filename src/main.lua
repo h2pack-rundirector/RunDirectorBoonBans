@@ -77,6 +77,10 @@ local function BuildDefinitionStorage()
         { type = "int",    alias = "NpcViewRegion",                   lifetime = "transient",                         default = 4, min = 1, max = 4 },
         { type = "string", alias = "BanFilterText",                   lifetime = "transient",                         default = "", maxLen = 128 },
         { type = "string", alias = "BanFilterMode",                   lifetime = "transient",                         default = "all", maxLen = 16 },
+        { type = "string", alias = "SelectedRoot_Olympians",          lifetime = "transient",                         default = "", maxLen = 64 },
+        { type = "string", alias = "SelectedRoot_Other Gods",         lifetime = "transient",                         default = "", maxLen = 64 },
+        { type = "string", alias = "SelectedRoot_Hammers",            lifetime = "transient",                         default = "", maxLen = 64 },
+        { type = "string", alias = "SelectedRoot_NPCs",               lifetime = "transient",                         default = "", maxLen = 64 },
         { type = "string", alias = BRIDAL_GLOW_TARGET_TEXT_ALIAS,     lifetime = "transient",                         default = "Current Target: Random", maxLen = 256 },
     }
 

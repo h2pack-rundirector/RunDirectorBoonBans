@@ -60,21 +60,3 @@ function uiData.GetRarityRows(root)
     end
     return rows
 end
-
-function uiData.DrawNpcRegionFilter(ui, uiState)
-    local panelNode = uiData.GetNpcRegionFilterPanelNode()
-    if panelNode then
-        ui.PushID("npc_region_filter")
-        lib.drawUiNode(ui, panelNode, uiState, nil, internal.definition.customTypes)
-        ui.PopID()
-    end
-end
-
-function uiData.DrawSettingsTab(ui, uiState)
-    local panelNode = uiData.GetSettingsPanelNode()
-    if panelNode then
-        ui.PushID("settings")
-        lib.drawUiNode(ui, panelNode, uiState, nil, internal.definition.customTypes)
-        ui.PopID()
-    end
-end

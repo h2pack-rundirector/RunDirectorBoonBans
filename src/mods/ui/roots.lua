@@ -198,6 +198,9 @@ function uiData.InvalidateRootSummaryByScope(scopeKey)
         root.cachedSelectorLabel = nil
         root.cachedSelectorEquipped = nil
         root.cachedSelectorSummary = nil
+        root.cachedNodeSignature = nil
+        root.cachedNodeSignatureSelector = nil
+        root.cachedNodeSignatureHeader = nil
     end
     uiData.cachedCustomizedRootCount = nil
 end
@@ -219,14 +222,19 @@ function uiData.ResetBanFilter(rootId, uiState)
 end
 
 function uiData.SelectRoot(tabName, rootId, uiState)
-    if uiData.selectedRootByMainTab[tabName] ~= rootId then
-        uiData.selectedRootByMainTab[tabName] = rootId
+    local alias = uiData.GetSelectedRootAlias(tabName)
+    local currentId = uiState and uiState.get and uiState.get(alias) or nil
+    if currentId ~= rootId then
+        if uiState and uiState.set then
+            uiState.set(alias, rootId)
+        end
         uiData.ResetBanFilter(rootId, uiState)
     end
 end
 
 function uiData.EnsureSelectedRoot(tabName, visibleRoots, uiState)
-    local currentId = uiData.selectedRootByMainTab[tabName]
+    local alias = uiData.GetSelectedRootAlias(tabName)
+    local currentId = uiState and uiState.get and uiState.get(alias) or nil
     for _, root in ipairs(visibleRoots) do
         if root.id == currentId then
             return root
@@ -250,7 +258,9 @@ function uiData.EnsureSelectedRoot(tabName, visibleRoots, uiState)
         return fallback
     end
 
-    uiData.selectedRootByMainTab[tabName] = nil
+    if uiState and uiState.reset then
+        uiState.reset(alias)
+    end
     return nil
 end
 
@@ -352,6 +362,25 @@ function uiData.GetRootHeaderSummary(root, uiState)
     end
     root.cachedHeaderSummary = table.concat(parts, "   ")
     return root.cachedHeaderSummary
+end
+
+function uiData.GetRootNodeSignature(root, uiState)
+    if type(root) ~= "table" or type(root.id) ~= "string" or root.id == "" then
+        return ""
+    end
+
+    local selectorLabel = uiData.GetSelectorLabel(root, uiState)
+    local headerSummary = uiData.GetRootHeaderSummary(root, uiState) or ""
+    if root.cachedNodeSignature
+        and root.cachedNodeSignatureSelector == selectorLabel
+        and root.cachedNodeSignatureHeader == headerSummary then
+        return root.cachedNodeSignature
+    end
+
+    root.cachedNodeSignatureSelector = selectorLabel
+    root.cachedNodeSignatureHeader = headerSummary
+    root.cachedNodeSignature = table.concat({ root.id, selectorLabel, headerSummary }, "|")
+    return root.cachedNodeSignature
 end
 
 function uiData.GetCustomizedRootCount(uiState)

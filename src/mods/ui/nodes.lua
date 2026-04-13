@@ -6,10 +6,10 @@ internal.uiNodes = {
     bridalGlowPanels = {},
     mainTabs = nil,
     domainTabs = {},
+    domainPanels = {},
     rootViewTabs = {},
     rarityPanels = {},
     rarityBadges = {},
-    forceRarityBadges = {},
     forcePanels = {},
     npcRegionFilterPanel = nil,
     settingsPanel = nil,
@@ -104,21 +104,6 @@ function uiData.GetRarityBadgeNode(alias)
 
     node = PrepareNode(BuildRarityBadgeSpec(alias), "BoonBans rarityBadge " .. alias)
     nodeCache.rarityBadges[alias] = node
-    return node
-end
-
-function uiData.GetForceRarityBadgeNode(alias)
-    if type(alias) ~= "string" or alias == "" then
-        return nil
-    end
-
-    local node = nodeCache.forceRarityBadges[alias]
-    if node then
-        return node
-    end
-
-    node = PrepareNode(BuildRarityBadgeSpec(alias), "BoonBans forceRarityBadge " .. alias)
-    nodeCache.forceRarityBadges[alias] = node
     return node
 end
 
@@ -597,27 +582,123 @@ function uiData.GetQuickResetNode()
     return node
 end
 
-function uiData.GetMainTabsNode()
-    if nodeCache.mainTabs then
-        return nodeCache.mainTabs
-    end
-
+function uiData.GetMainTabsNode(uiState)
     local children = {}
+    local tabStateByKey = {}
+    local signatureParts = {}
     for _, tabName in ipairs(uiData.MAIN_TABS) do
-        children[#children + 1] = {
-            type = "mainTabContent",
-            tabName = tabName,
-            tabLabel = tabName,
-            tabId = tabName,
-        }
+        if tabName == "Settings" then
+            local settingsNode = uiData.GetSettingsPanelNode()
+            settingsNode.tabLabel = tabName
+            settingsNode.tabId = tabName
+            children[#children + 1] = settingsNode
+            signatureParts[#signatureParts + 1] = tabName
+        else
+            local visibleRoots, totalCount, godPoolFiltering = uiData.GetVisibleRoots(tabName, uiState)
+            local selectedRoot = uiData.EnsureSelectedRoot(tabName, visibleRoots, uiState)
+            if selectedRoot and selectedRoot.id == "Hera" and uiData.activeBridalGlowRootId ~= selectedRoot.id then
+                uiData.InvalidateBridalGlowRootCache()
+                uiData.activeBridalGlowRootId = selectedRoot.id
+            end
+
+            local domainPanelNode = uiData.GetDomainPanelNode(tabName, visibleRoots, totalCount, godPoolFiltering, uiState)
+            if domainPanelNode then
+                local domainNode = domainPanelNode._domainTabsNode
+                if domainNode and selectedRoot then
+                    domainNode._activeTabKey = selectedRoot.id
+                end
+                domainPanelNode.tabLabel = tabName
+                domainPanelNode.tabId = tabName
+                children[#children + 1] = domainPanelNode
+                tabStateByKey[tabName] = {
+                    selectedRoot = selectedRoot,
+                    domainNode = domainNode,
+                }
+                local domainPanelCache = nodeCache.domainPanels[tabName]
+                signatureParts[#signatureParts + 1] = tabName
+                signatureParts[#signatureParts + 1] = domainPanelCache and domainPanelCache.signature or ""
+            end
+        end
     end
 
-    local node = PrepareNode({
-        type = "horizontalTabs",
-        id = "BoonSubTabs",
-        children = children,
-    }, "BoonBans mainTabs")
-    nodeCache.mainTabs = node
+    local signature = table.concat(signatureParts, "|")
+    local cacheEntry, node = lib.getCachedPreparedNode(nodeCache.mainTabs, signature, function()
+        return PrepareNode({
+            type = "horizontalTabs",
+            id = "BoonSubTabs",
+            children = children,
+        }, "BoonBans mainTabs")
+    end, {
+        reuseState = function(nextNode, previousNode)
+            if previousNode and previousNode._activeTabKey ~= nil then
+                nextNode._activeTabKey = previousNode._activeTabKey
+            end
+        end,
+    })
+    node._tabStateByKey = tabStateByKey
+    nodeCache.mainTabs = cacheEntry
+    return node
+end
+
+local function BuildDomainPanelSignature(tabName, visibleRoots, totalCount, godPoolFiltering, uiState)
+    local signatureParts = {
+        tabName,
+        tostring(totalCount),
+        tostring(godPoolFiltering == true),
+    }
+
+    for _, root in ipairs(visibleRoots or uiData.EMPTY_LIST) do
+        signatureParts[#signatureParts + 1] = uiData.GetRootNodeSignature(root, uiState)
+    end
+
+    return table.concat(signatureParts, "|")
+end
+
+function uiData.GetDomainPanelNode(tabName, visibleRoots, totalCount, godPoolFiltering, uiState)
+    if type(tabName) ~= "string" or tabName == "" then
+        return nil
+    end
+
+    local signature = BuildDomainPanelSignature(tabName, visibleRoots, totalCount, godPoolFiltering, uiState)
+    local cacheEntry, node = lib.getCachedPreparedNode(nodeCache.domainPanels[tabName], signature, function()
+        local children = {}
+        local domainNode = nil
+
+        if tabName == "NPCs" then
+            children[#children + 1] = uiData.GetNpcRegionFilterPanelNode()
+            children[#children + 1] = { type = "separator" }
+        end
+
+        if tabName == "Olympians" and godPoolFiltering then
+            children[#children + 1] = {
+                type = "text",
+                text = string.format("Showing %d/%d Olympians enabled in God Pool.", #visibleRoots, totalCount),
+                color = uiData.MUTED_TEXT_COLOR,
+            }
+            children[#children + 1] = { type = "separator" }
+        end
+
+        if #visibleRoots == 0 then
+            children[#children + 1] = {
+                type = "text",
+                text = "No entries available.",
+                color = uiData.MUTED_TEXT_COLOR,
+            }
+        else
+            domainNode = uiData.GetDomainTabsNode(tabName, visibleRoots, uiState)
+            if domainNode then
+                children[#children + 1] = domainNode
+            end
+        end
+
+        local nextNode = PrepareNode({
+            type = "group",
+            children = children,
+        }, "BoonBans domainPanel " .. tabName)
+        nextNode._domainTabsNode = domainNode
+        return nextNode
+    end)
+    nodeCache.domainPanels[tabName] = cacheEntry
     return node
 end
 
@@ -676,32 +757,25 @@ function uiData.GetDomainTabsNode(tabName, visibleRoots, uiState)
 
     local signatureParts = { tabName }
     for _, root in ipairs(visibleRoots or uiData.EMPTY_LIST) do
-        signatureParts[#signatureParts + 1] = root.id
-        signatureParts[#signatureParts + 1] = uiData.GetSelectorLabel(root, uiState)
-        signatureParts[#signatureParts + 1] = uiData.GetRootHeaderSummary(root, uiState) or ""
+        signatureParts[#signatureParts + 1] = uiData.GetRootNodeSignature(root, uiState)
     end
     local signature = table.concat(signatureParts, "|")
 
-    local cached = nodeCache.domainTabs[tabName]
-    if cached and cached.signature == signature then
-        return cached.node
-    end
+    local cacheEntry, node = lib.getCachedPreparedNode(nodeCache.domainTabs[tabName], signature, function()
+        local children = {}
+        for _, root in ipairs(visibleRoots or uiData.EMPTY_LIST) do
+            children[#children + 1] = BuildRootDetailSpec(root, uiState)
+        end
 
-    local children = {}
-    for _, root in ipairs(visibleRoots or uiData.EMPTY_LIST) do
-        children[#children + 1] = BuildRootDetailSpec(root, uiState)
-    end
+        return PrepareNode({
+            type = "verticalTabs",
+            id = "BoonBansDomain##" .. tabName,
+            binds = { activeTab = uiData.GetSelectedRootAlias(tabName) },
+            sidebarWidth = 260,
+            children = children,
+        }, "BoonBans domainTabs " .. tabName)
+    end)
 
-    local node = PrepareNode({
-        type = "verticalTabs",
-        id = "BoonBansDomain##" .. tabName,
-        sidebarWidth = 260,
-        children = children,
-    }, "BoonBans domainTabs " .. tabName)
-
-    nodeCache.domainTabs[tabName] = {
-        signature = signature,
-        node = node,
-    }
+    nodeCache.domainTabs[tabName] = cacheEntry
     return node
 end

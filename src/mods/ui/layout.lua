@@ -1,39 +1,25 @@
 local internal = RunDirectorBoonBans_Internal
 local uiData = internal.ui
 
-function uiData.DrawDomainTab(ui, uiState, tabName)
-    if tabName == "NPCs" then
-        uiData.DrawNpcRegionFilter(ui, uiState)
-        ui.Separator()
-    end
+function uiData.DrawMainContent(ui, uiState)
+    local mainTabsNode = uiData.GetMainTabsNode(uiState)
+    if mainTabsNode then
+        local changed = lib.drawUiNode(ui, mainTabsNode, uiState, nil, internal.definition.customTypes)
+        local activeTabName = mainTabsNode._activeTabKey
+        local tabState = nil
+        if type(activeTabName) == "string" and mainTabsNode._tabStateByKey then
+            tabState = mainTabsNode._tabStateByKey[activeTabName]
+        end
+        local activeRootAlias = type(activeTabName) == "string" and uiData.GetSelectedRootAlias(activeTabName) or nil
+        local activeRootId = activeRootAlias and uiState.get(activeRootAlias) or nil
+        local selectedRoot = (type(activeRootId) == "string" and activeRootId ~= "")
+            and uiData.GetRootById(activeRootId)
+            or (tabState and tabState.selectedRoot or nil)
 
-    local visibleRoots, totalCount, godPoolFiltering = uiData.GetVisibleRoots(tabName, uiState)
-    if tabName == "Olympians" and godPoolFiltering then
-        ui.TextDisabled(string.format("Showing %d/%d Olympians enabled in God Pool.", #visibleRoots, totalCount))
-        ui.Separator()
-    end
-
-    local selectedRoot = uiData.EnsureSelectedRoot(tabName, visibleRoots, uiState)
-    if not selectedRoot then
-        ui.TextDisabled("No entries available.")
-        return
-    end
-    if selectedRoot.id == "Hera" and uiData.activeBridalGlowRootId ~= selectedRoot.id then
-        uiData.InvalidateBridalGlowRootCache()
-        uiData.activeBridalGlowRootId = selectedRoot.id
-    end
-
-    local domainNode = uiData.GetDomainTabsNode(tabName, visibleRoots, uiState)
-    if domainNode then
-        domainNode._activeTabKey = selectedRoot.id
-        ui.PushID("domain_" .. tabName)
-        local changed = lib.drawUiNode(ui, domainNode, uiState, nil, internal.definition.customTypes)
-        ui.PopID()
-
-        local activeRootId = domainNode._activeTabKey
-        if type(activeRootId) == "string" and activeRootId ~= "" and activeRootId ~= selectedRoot.id then
-            uiData.SelectRoot(tabName, activeRootId, uiState)
-            selectedRoot = uiData.GetRootById(activeRootId) or selectedRoot
+        if selectedRoot and type(activeTabName) == "string" then
+            if uiData.banFilterState.rootId ~= selectedRoot.id then
+                uiData.ResetBanFilter(selectedRoot.id, uiState)
+            end
             if selectedRoot.id == "Hera" and uiData.activeBridalGlowRootId ~= selectedRoot.id then
                 uiData.InvalidateBridalGlowRootCache()
                 uiData.activeBridalGlowRootId = selectedRoot.id
@@ -45,13 +31,6 @@ function uiData.DrawDomainTab(ui, uiState, tabName)
                 internal.UpdateGodStats(scope.key, uiState)
             end
         end
-    end
-end
-
-function uiData.DrawMainContent(ui, uiState)
-    local mainTabsNode = uiData.GetMainTabsNode()
-    if mainTabsNode then
-        lib.drawUiNode(ui, mainTabsNode, uiState, nil, internal.definition.customTypes)
     end
 end
 
