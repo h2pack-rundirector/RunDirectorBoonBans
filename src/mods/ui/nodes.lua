@@ -387,7 +387,7 @@ function uiData.GetForcePanelNode(root)
     end
 
     local children = {}
-    for lineIndex, scope in ipairs(root.scopes or {}) do
+    for _, scope in ipairs(root.scopes or {}) do
         local bindAlias = internal.GetBanRootAlias(scope.key)
         if bindAlias then
             local rowChildren = {}
