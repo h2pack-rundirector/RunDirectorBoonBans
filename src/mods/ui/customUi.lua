@@ -18,6 +18,10 @@ local function ClampRarity(value)
     return numeric
 end
 
+local function SetAtomicCursor(ui, x, y)
+    ui.SetCursorPos(x, y)
+end
+
 public.definition = public.definition or internal.definition or {}
 internal.definition = public.definition
 
@@ -169,11 +173,11 @@ public.definition.customTypes = {
                     ContractWarn("%s: forceRarityStatus rarityScopeKey must be a non-empty string", prefix)
                 end
             end,
-            draw = function(ui, node, bound, uiState)
+            draw = function(ui, node, bound, width, uiState)
                 local packedMask = bound.value and bound.value:get() or 0
                 local forcedBoon = uiData.GetForcedBoonSelection(node.forceScopeKey, packedMask)
-                local startX = type(ui.GetCursorPosX) == "function" and ui.GetCursorPosX() or nil
-                local startY = type(ui.GetCursorPosY) == "function" and ui.GetCursorPosY() or nil
+                local startX = ui.GetCursorPosX()
+                local startY = ui.GetCursorPosY()
                 if type(forcedBoon) ~= "table" or not uiData.IsRarityEligibleBoon(forcedBoon) then
                     return false
                 end
@@ -185,47 +189,40 @@ public.definition.customTypes = {
 
                 local currentValue = ClampRarity(uiState and uiState.view and uiState.view[rarityAlias])
                 local changed = false
-                local frameHeight = type(ui.GetFrameHeight) == "function" and ui.GetFrameHeight() or 0
+                local frameHeight = ui.GetFrameHeight()
                 local valueSlotStart = startX + 10
                 local valueText = tostring(uiData.RARITY_LABELS[currentValue] or currentValue)
                 local valueColor = uiData.RARITY_COLORS[currentValue]
-                local textWidth = type(ui.CalcTextSize) == "function" and ui.CalcTextSize(valueText) or 0
+                local textWidth = ui.CalcTextSize(valueText)
                 local alignedValueX = valueSlotStart + math.max((100 - textWidth) / 2, 0)
+                local id = node._imguiId or rarityAlias or node.rarityScopeKey
 
-                if type(ui.SetCursorPosY) == "function" then
-                    ui.SetCursorPosY(startY)
-                end
-                ui.SetCursorPosX(startX)
+                ui.PushID(id)
+
+                SetAtomicCursor(ui, startX, startY)
                 if ui.Button("-") and currentValue > 0 then
                     currentValue = currentValue - 1
                     uiState.set(rarityAlias, currentValue)
                     changed = true
                 end
 
-                if type(ui.SetCursorPosY) == "function" then
-                    ui.SetCursorPosY(startY)
-                end
-                ui.SetCursorPosX(alignedValueX)
+                SetAtomicCursor(ui, alignedValueX, startY)
                 if type(valueColor) == "table" then
                     ui.TextColored(valueColor[1], valueColor[2], valueColor[3], valueColor[4], valueText)
                 else
                     ui.Text(valueText)
                 end
 
-                if type(ui.SetCursorPosY) == "function" then
-                    ui.SetCursorPosY(startY)
-                end
-                ui.SetCursorPosX(startX + 100)
+                SetAtomicCursor(ui, startX + 100, startY)
                 if ui.Button("+") and currentValue < 3 then
                     currentValue = currentValue + 1
                     uiState.set(rarityAlias, currentValue)
                     changed = true
                 end
 
-                if type(ui.SetCursorPosY) == "function" then
-                    ui.SetCursorPosY(startY + frameHeight)
-                end
-                ui.SetCursorPosX(startX)
+                ui.PopID()
+
+                SetAtomicCursor(ui, startX, startY + frameHeight)
                 return changed
             end,
         },

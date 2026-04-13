@@ -216,8 +216,13 @@ end
 function uiData.ResetBanFilter(rootId, uiState)
     uiData.banFilterState.rootId = rootId
     if uiState then
-        uiState.reset(uiData.BAN_FILTER_TEXT_ALIAS)
-        uiState.reset(uiData.BAN_FILTER_MODE_ALIAS)
+        if uiState.reset then
+            uiState.reset(uiData.BAN_FILTER_TEXT_ALIAS)
+            uiState.reset(uiData.BAN_FILTER_MODE_ALIAS)
+        elseif uiState.set then
+            uiState.set(uiData.BAN_FILTER_TEXT_ALIAS, "")
+            uiState.set(uiData.BAN_FILTER_MODE_ALIAS, "all")
+        end
     end
 end
 

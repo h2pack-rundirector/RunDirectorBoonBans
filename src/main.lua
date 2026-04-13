@@ -135,6 +135,10 @@ end
 local function SyncPublicExports()
     public.DrawTab = internal.DrawTab
     public.DrawQuickContent = internal.DrawQuickContent
+    public.BeforeDrawTab = internal.BeforeDrawTab
+    public.AfterDrawTab = internal.AfterDrawTab
+    public.BeforeDrawQuickContent = internal.BeforeDrawQuickContent
+    public.AfterDrawQuickContent = internal.AfterDrawQuickContent
 end
 
 local function registerHooks()
@@ -167,6 +171,12 @@ local function init()
             end,
             getDrawTab = function()
                 return public.DrawTab
+            end,
+            getBeforeDrawTab = function()
+                return internal.BeforeDrawTab
+            end,
+            getAfterDrawTab = function()
+                return internal.AfterDrawTab
             end,
         }
     )
