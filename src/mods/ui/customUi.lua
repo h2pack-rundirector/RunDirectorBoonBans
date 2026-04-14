@@ -18,6 +18,22 @@ local function ClampRarity(value)
     return numeric
 end
 
+local function GetTextWidth(ui, text)
+    local width = ui.CalcTextSize(tostring(text or ""))
+    if type(width) == "number" then
+        return width
+    end
+    if type(width) == "table" then
+        if type(width.x) == "number" then
+            return width.x
+        end
+        if type(width[1]) == "number" then
+            return width[1]
+        end
+    end
+    return 0
+end
+
 public.definition = public.definition or internal.definition or {}
 internal.definition = public.definition
 
@@ -97,8 +113,7 @@ public.definition.customTypes = {
             binds = {},
             slots = { "value" },
             validate = function(_, _) end,
-            draw = function(ui, node, _, _, uiState)
-                local _ = node
+            draw = function(ui, node, _, x, y, _, _, uiState)
                 local paneHeight = 220
                 local godPaneWidth = 200
                 local selectedBoonKey = uiState.view.BridalGlowTargetBoon or ""
@@ -112,7 +127,7 @@ public.definition.customTypes = {
                                 return false
                             end,
                         },
-                    })
+                    }, x, y)
                 end
 
                 local selectedRoot = EnsureBridalGlowRootSelection(eligibleRoots, selectedBoonKey)
@@ -154,7 +169,7 @@ public.definition.customTypes = {
                             return false
                         end,
                     },
-                })
+                }, x, y)
             end,
         },
         forceRarityStatus = {
@@ -169,32 +184,31 @@ public.definition.customTypes = {
                     ContractWarn("%s: forceRarityStatus rarityScopeKey must be a non-empty string", prefix)
                 end
             end,
-            draw = function(ui, node, bound, width, uiState)
-                local _ = width
+            draw = function(ui, node, bound, x, y, _, _, uiState)
                 local packedMask = bound.value and bound.value:get() or 0
                 local forcedBoon = uiData.GetForcedBoonSelection(node.forceScopeKey, packedMask)
                 if type(forcedBoon) ~= "table" or not uiData.IsRarityEligibleBoon(forcedBoon) then
-                    return false
+                    return 0, 0, false
                 end
 
                 local rarityAlias = internal.GetRarityAlias(node.rarityScopeKey, forcedBoon.Key)
                 if type(rarityAlias) ~= "string" or rarityAlias == "" then
-                    return false
+                    return 0, 0, false
                 end
 
                 local currentValue = ClampRarity(uiState and uiState.view and uiState.view[rarityAlias])
-                local startX = ui.GetCursorPosX()
-                local startY = ui.GetCursorPosY()
                 local frameHeight = ui.GetFrameHeight()
+                local startX = x
+                local startY = y
                 local valueSlotStart = startX + 10
                 local valueText = tostring(uiData.RARITY_LABELS[currentValue] or currentValue)
                 local valueColor = uiData.RARITY_COLORS[currentValue]
-                local textWidth = ui.CalcTextSize(valueText)
+                local textWidth = GetTextWidth(ui, valueText)
                 local alignedValueX = valueSlotStart + math.max((100 - textWidth) / 2, 0)
                 local id = node._imguiId or rarityAlias or node.rarityScopeKey
                 local drawStructuredAt = lib.WidgetHelpers and lib.WidgetHelpers.drawStructuredAt
                 if type(drawStructuredAt) ~= "function" then
-                    return false
+                    return 0, 0, false
                 end
 
                 local changed = drawStructuredAt(ui, startX, startY, frameHeight, function()
@@ -225,7 +239,7 @@ public.definition.customTypes = {
                     ui.PopID()
                     return localChanged
                 end)
-                return changed == true
+                return 120, frameHeight, changed == true
             end,
         },
     }

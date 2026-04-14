@@ -12,6 +12,9 @@ local function GetActiveRootState(uiState)
     if type(activeTabName) == "string" and mainTabsNode._tabStateByKey then
         tabState = mainTabsNode._tabStateByKey[activeTabName]
     end
+    if activeTabName == "Settings" then
+        return mainTabsNode, nil
+    end
     local activeRootAlias = type(activeTabName) == "string" and uiData.GetSelectedRootAlias(activeTabName) or nil
     local activeRootId = activeRootAlias and uiState.get(activeRootAlias) or nil
     local selectedRoot = (type(activeRootId) == "string" and activeRootId ~= "")

@@ -36,13 +36,6 @@ uiData.NPC_REGION_OPTIONS = {
     { label = "Surface", value = 3 },
     { label = "Both", value = 4 },
 }
-uiData.MAIN_TABS = {
-    "Olympians",
-    "Other Gods",
-    "Hammers",
-    "NPCs",
-    "Settings",
-}
 uiData.BRIDAL_GLOW_VIEW_ID = "__bridal_glow__"
 uiData.TAB_BY_GROUP = {
     Core = "Olympians",
@@ -77,7 +70,6 @@ uiData.NPC_VIEW_REGION_ALIAS = "NpcViewRegion"
 uiData.DIRECT_BANS_VIEW_ID = "__bans__"
 uiData.FORCE_VIEW_ID = "__force__"
 uiData.RARITY_VIEW_ID = "__rarity__"
-uiData.SIDEBAR_RATIO = 0.28
 uiData.CONFIRM_TIMEOUT = 5.0
 uiData.BAN_LABEL_START = 28
 

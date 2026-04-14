@@ -16,48 +16,31 @@ internal.uiNodes = {
     quickResetNode = nil,
 }
 local nodeCache = internal.uiNodes
+local UI_NODE_CACHE_VERSION = "layout_v2_2"
 
-local BANS_CONTROL_COLUMNS = {
-    { name = "summary", start = 0, width = 120 },
-    { name = "primary", start = 132, width = 88 },
-    { name = "secondary", start = 228, width = 88 },
-    { name = "filterLabel", start = 0, width = 48 },
-    { name = "filterInput", start = 56, width = 180 },
-    { name = "filterClear", start = 244, width = 72 },
-    { name = "filterMode", start = 328 },
-}
+local function EnsureNodeCacheVersion()
+    if nodeCache._version == UI_NODE_CACHE_VERSION then
+        return
+    end
 
-local BANS_PANEL_COLUMNS = {
-    { name = "content", start = 0 },
-}
+    for key in pairs(nodeCache) do
+        nodeCache[key] = nil
+    end
 
-local BRIDAL_GLOW_COLUMNS = {
-    { name = "content", start = 0 },
-}
-
-local RARITY_COLUMNS = {
-    { name = "label", start = 0 },
-    { name = "control", start = 300, width = 120 },
-}
-
-local FORCE_COLUMNS = {
-    { name = "label", start = 0 },
-    { name = "control", start = 84, width = 200 },
-    { name = "status", start = 296, width = 140 },
-}
-
-local SETTINGS_COLUMNS = {
-    { name = "content", start = 0 },
-}
-
-local NPC_FILTER_COLUMNS = {
-    { name = "content", start = 0 },
-}
-
-local ROOT_DETAIL_HEADER_COLUMNS = {
-    { name = "title", start = 0 },
-    { name = "summary", start = 220 },
-}
+    nodeCache.banPanels = {}
+    nodeCache.bridalGlowPanels = {}
+    nodeCache.mainTabs = nil
+    nodeCache.domainTabs = {}
+    nodeCache.domainPanels = {}
+    nodeCache.rootViewTabs = {}
+    nodeCache.rarityPanels = {}
+    nodeCache.rarityBadges = {}
+    nodeCache.forcePanels = {}
+    nodeCache.npcRegionFilterPanel = nil
+    nodeCache.settingsPanel = nil
+    nodeCache.quickResetNode = nil
+    nodeCache._version = UI_NODE_CACHE_VERSION
+end
 
 local function PrepareNode(node, label)
     lib.prepareUiNode(
@@ -93,6 +76,7 @@ local function BuildRarityBadgeSpec(alias)
 end
 
 function uiData.GetRarityBadgeNode(alias)
+    EnsureNodeCacheVersion()
     if type(alias) ~= "string" or alias == "" then
         return nil
     end
@@ -108,6 +92,7 @@ function uiData.GetRarityBadgeNode(alias)
 end
 
 function uiData.GetRarityPanelNode(root)
+    EnsureNodeCacheVersion()
     if type(root) ~= "table" or type(root.id) ~= "string" or root.id == "" then
         return nil
     end
@@ -118,24 +103,33 @@ function uiData.GetRarityPanelNode(root)
     end
 
     local children = {}
-    for lineIndex, row in ipairs(uiData.GetRarityRows(root)) do
+    for _, row in ipairs(uiData.GetRarityRows(root)) do
         if type(row.alias) == "string" and row.alias ~= "" then
-            children[#children + 1] = {
-                type = "text",
-                text = row.name or row.key or row.alias,
-                panel = { column = "label", line = lineIndex },
-            }
             local rarityNode = uiData.GetRarityBadgeNode(row.alias)
             if rarityNode then
-                rarityNode.panel = { column = "control", line = lineIndex }
-                children[#children + 1] = rarityNode
+                children[#children + 1] = {
+                    type = "hstack",
+                    gap = 12,
+                    children = {
+                        {
+                            type = "text",
+                            text = row.name or row.key or row.alias,
+                            geometry = {
+                                slots = {
+                                    { name = "value", width = 300 },
+                                },
+                            },
+                        },
+                        rarityNode,
+                    },
+                }
             end
         end
     end
 
     node = PrepareNode({
-        type = "panel",
-        columns = RARITY_COLUMNS,
+        type = "vstack",
+        gap = 6,
         children = children,
     }, "BoonBans rarityPanel " .. root.id)
     nodeCache.rarityPanels[root.id] = node
@@ -150,76 +144,106 @@ local function BuildBanControlsPanelSpec(scopeKey)
     end
 
     return {
-        type = "panel",
-        columns = BANS_CONTROL_COLUMNS,
+        type = "vstack",
+        gap = 6,
         children = {
             {
-                type = "text",
-                binds = { value = uiData.GetBanSummaryAlias(scopeKey) },
-                color = uiData.MUTED_TEXT_COLOR,
-                panel = { column = "summary", line = 1 },
-            },
-            {
-                type = "button",
-                label = "Ban All",
-                onClick = function(uiState)
-                    internal.BanAllGodBans(scopeKey, uiState)
-                end,
-                panel = { column = "primary", line = 1 },
-            },
-            {
-                type = "button",
-                label = "Reset",
-                onClick = function(uiState)
-                    internal.ResetGodBans(scopeKey, uiState)
-                end,
-                panel = { column = "secondary", line = 1 },
-            },
-            {
-                type = "text",
-                text = "Filter:",
-                panel = { column = "filterLabel", line = 2 },
-            },
-            {
-                type = "inputText",
-                binds = { value = uiData.BAN_FILTER_TEXT_ALIAS },
-                label = "",
-                geometry = {
-                    slots = {
-                        { name = "control", width = 180 },
+                type = "split",
+                orientation = "horizontal",
+                firstSize = 120,
+                gap = 12,
+                children = {
+                    {
+                        type = "text",
+                        binds = { value = uiData.GetBanSummaryAlias(scopeKey) },
+                        color = uiData.MUTED_TEXT_COLOR,
+                    },
+                    {
+                        type = "hstack",
+                        gap = 12,
+                        children = {
+                            {
+                                type = "button",
+                                label = "Ban All",
+                                onClick = function(uiState)
+                                    internal.BanAllGodBans(scopeKey, uiState)
+                                end,
+                            },
+                            {
+                                type = "button",
+                                label = "Reset",
+                                onClick = function(uiState)
+                                    internal.ResetGodBans(scopeKey, uiState)
+                                end,
+                            },
+                        },
                     },
                 },
-                panel = { column = "filterInput", line = 2 },
             },
             {
-                type = "button",
-                label = "Clear",
-                onClick = function(uiState)
-                    uiState.reset(uiData.BAN_FILTER_TEXT_ALIAS)
-                    uiState.reset(uiData.BAN_FILTER_MODE_ALIAS)
-                end,
-                panel = { column = "filterClear", line = 2 },
-            },
-            {
-                type = "radio",
-                binds = { value = uiData.BAN_FILTER_MODE_ALIAS },
-                label = "",
-                values = { "all", "checked", "unchecked" },
-                displayValues = displayValues,
-                geometry = {
-                    slots = {
-                        { name = "option:1", line = 1, start = 0 },
-                        { name = "option:2", line = 1, start = 56 },
-                        { name = "option:3", line = 1, start = 136 },
+                type = "split",
+                orientation = "horizontal",
+                firstSize = 48,
+                gap = 8,
+                children = {
+                    {
+                        type = "text",
+                        text = "Filter:",
+                    },
+                    {
+                        type = "split",
+                        orientation = "horizontal",
+                        firstSize = 252,
+                        gap = 12,
+                        children = {
+                            {
+                                type = "hstack",
+                                gap = 12,
+                                children = {
+                                    {
+                                        type = "inputText",
+                                        binds = { value = uiData.BAN_FILTER_TEXT_ALIAS },
+                                        label = "",
+                                        geometry = {
+                                            slots = {
+                                                { name = "control", width = 180 },
+                                            },
+                                        },
+                                    },
+                                    {
+                                        type = "button",
+                                        label = "Clear",
+                                        onClick = function(uiState)
+                                            uiState.reset(uiData.BAN_FILTER_TEXT_ALIAS)
+                                            uiState.reset(uiData.BAN_FILTER_MODE_ALIAS)
+                                        end,
+                                    },
+                                },
+                            },
+                            {
+                                type = "radio",
+                                binds = { value = uiData.BAN_FILTER_MODE_ALIAS },
+                                label = "",
+                                values = { "all", "checked", "unchecked" },
+                                displayValues = displayValues,
+                                geometry = {
+                                    slots = {
+                                        { name = "option:1", line = 1, start = 0 },
+                                        { name = "option:2", line = 1, start = 56 },
+                                        { name = "option:3", line = 1, start = 136 },
+                                    },
+                                },
+                            },
+                        },
                     },
                 },
-                panel = { column = "filterMode", line = 2 },
             },
         },
     }
 end
 
 function uiData.GetBanPanelNode(scopeKey)
+    EnsureNodeCacheVersion()
     if type(scopeKey) ~= "string" or scopeKey == "" then
         return nil
     end
@@ -229,42 +253,35 @@ function uiData.GetBanPanelNode(scopeKey)
         return node
     end
 
-    local children = {}
-    children[#children + 1] = BuildBanControlsPanelSpec(scopeKey)
-    children[#children].panel = { column = "content", line = 1 }
-    children[#children + 1] = {
-        type = "separator",
-        panel = { column = "content", line = 2 },
-    }
-    children[#children + 1] = {
-        type = "packedCheckboxList",
-        binds = {
-            value = internal.GetBanRootAlias(scopeKey),
-            filterText = uiData.BAN_FILTER_TEXT_ALIAS,
-            filterMode = uiData.BAN_FILTER_MODE_ALIAS,
-        },
-        valueColors = uiData.BuildPackedBanValueColors(scopeKey),
-        slotCount = #(uiData.GetScopeBoons(scopeKey) or uiData.EMPTY_LIST),
-        panel = { column = "content", line = 3 },
-    }
-    children[#children + 1] = {
-        type = "text",
-        binds = { value = uiData.GetBanEmptyStateAlias(scopeKey) },
-        color = uiData.MUTED_TEXT_COLOR,
-        visibleIf = { alias = uiData.GetBanEmptyStateAlias(scopeKey), value = "No boons match the current filter." },
-        panel = { column = "content", line = 4 },
-    }
-
     node = PrepareNode({
-        type = "panel",
-        columns = BANS_PANEL_COLUMNS,
-        children = children,
+        type = "vstack",
+        gap = 8,
+        children = {
+            BuildBanControlsPanelSpec(scopeKey),
+            {
+                type = "packedCheckboxList",
+                binds = {
+                    value = internal.GetBanRootAlias(scopeKey),
+                    filterText = uiData.BAN_FILTER_TEXT_ALIAS,
+                    filterMode = uiData.BAN_FILTER_MODE_ALIAS,
+                },
+                valueColors = uiData.BuildPackedBanValueColors(scopeKey),
+                slotCount = #(uiData.GetScopeBoons(scopeKey) or uiData.EMPTY_LIST),
+            },
+            {
+                type = "text",
+                binds = { value = uiData.GetBanEmptyStateAlias(scopeKey) },
+                color = uiData.MUTED_TEXT_COLOR,
+                visibleIf = { alias = uiData.GetBanEmptyStateAlias(scopeKey), value = "No boons match the current filter." },
+            },
+        },
     }, "BoonBans banPanel " .. scopeKey)
     nodeCache.banPanels[scopeKey] = node
     return node
 end
 
 function uiData.GetBridalGlowPanelNode(root)
+    EnsureNodeCacheVersion()
     if type(root) ~= "table" or type(root.id) ~= "string" or root.id == "" then
         return nil
     end
@@ -275,22 +292,19 @@ function uiData.GetBridalGlowPanelNode(root)
     end
 
     node = PrepareNode({
-        type = "panel",
-        columns = BRIDAL_GLOW_COLUMNS,
+        type = "vstack",
+        gap = 8,
         children = {
             {
                 type = "text",
                 text = "Choose the Olympian god and boon pool Bridal Glow can target.",
-                panel = { column = "content", line = 1 },
             },
             {
                 type = "text",
                 binds = { value = uiData.BRIDAL_GLOW_TARGET_TEXT_ALIAS },
-                panel = { column = "content", line = 2 },
             },
             {
                 type = "bridalGlowPicker",
-                panel = { column = "content", line = 3 },
             },
         },
     }, "BoonBans bridalGlowPanel " .. root.id)
@@ -299,6 +313,7 @@ function uiData.GetBridalGlowPanelNode(root)
 end
 
 function uiData.GetRootViewsTabsNode(root)
+    EnsureNodeCacheVersion()
     if type(root) ~= "table" or type(root.id) ~= "string" or root.id == "" then
         return nil
     end
@@ -327,15 +342,13 @@ function uiData.GetRootViewsTabsNode(root)
                 }
             elseif root.isTiered then
                 child = {
-                    type = "group",
+                    type = "vstack",
+                    gap = 6,
                     children = {
                         {
                             type = "text",
                             text = "Rarity applies across all tiers for this root.",
                             color = uiData.MUTED_TEXT_COLOR,
-                        },
-                        {
-                            type = "separator",
                         },
                         uiData.GetRarityPanelNode(root),
                     },
@@ -353,7 +366,7 @@ function uiData.GetRootViewsTabsNode(root)
     end
 
     node = PrepareNode({
-        type = "horizontalTabs",
+        type = "tabs",
         id = "RootViews##" .. root.id,
         children = children,
     }, "BoonBans rootViewsTabs " .. root.id)
@@ -362,6 +375,7 @@ function uiData.GetRootViewsTabsNode(root)
 end
 
 function uiData.GetForcePanelNode(root)
+    EnsureNodeCacheVersion()
     if type(root) ~= "table" or type(root.id) ~= "string" or root.id == "" then
         return nil
     end
@@ -379,7 +393,6 @@ function uiData.GetForcePanelNode(root)
             rowChildren[#rowChildren + 1] = {
                 type = "text",
                 text = scope.label,
-                panel = { column = "label", line = 1 },
             }
             rowChildren[#rowChildren + 1] = {
                 type = "packedDropdown",
@@ -395,27 +408,26 @@ function uiData.GetForcePanelNode(root)
                         { name = "control", width = 200 },
                     },
                 },
-                panel = { column = "control", line = 1 },
             }
-              if root.hasRarity then
-                  rowChildren[#rowChildren + 1] = {
-                     type = "forceRarityStatus",
-                     binds = { value = bindAlias },
-                     forceScopeKey = scope.key,
-                     rarityScopeKey = root.primaryScopeKey,
-                     panel = { column = "status", line = 1 },
-                  }
-              end
+            if root.hasRarity then
+                rowChildren[#rowChildren + 1] = {
+                    type = "forceRarityStatus",
+                    binds = { value = bindAlias },
+                    forceScopeKey = scope.key,
+                    rarityScopeKey = root.primaryScopeKey,
+                }
+            end
             children[#children + 1] = {
-                type = "panel",
-                columns = FORCE_COLUMNS,
+                type = "hstack",
+                gap = 12,
                 children = rowChildren,
             }
         end
     end
 
     node = PrepareNode({
-        type = "group",
+        type = "vstack",
+        gap = 6,
         children = children,
     }, "BoonBans forcePanel " .. root.id)
     nodeCache.forcePanels[root.id] = node
@@ -423,30 +435,29 @@ function uiData.GetForcePanelNode(root)
 end
 
 function uiData.GetSettingsPanelNode()
+    EnsureNodeCacheVersion()
     if nodeCache.settingsPanel then
         return nodeCache.settingsPanel
     end
 
     local node = PrepareNode({
-        type = "panel",
-        columns = SETTINGS_COLUMNS,
+        type = "vstack",
+        gap = 8,
         children = {
             {
                 type = "checkbox",
                 binds = { value = "EnablePadding" },
                 label = "Enable Padding",
-                panel = { column = "content", line = 1 },
             },
             {
                 type = "text",
                 text = "Fills up menus to ensure enough options are available.",
                 color = uiData.MUTED_TEXT_COLOR,
-                panel = { column = "content", line = 2 },
             },
             {
-                type = "group",
+                type = "vstack",
+                gap = 6,
                 visibleIf = "EnablePadding",
-                panel = { column = "content", line = 3 },
                 children = {
                     {
                         type = "stepper",
@@ -474,27 +485,17 @@ function uiData.GetSettingsPanelNode()
                 },
             },
             {
-                type = "separator",
-                panel = { column = "content", line = 4 },
-            },
-            {
                 type = "stepper",
                 binds = { value = "ImproveFirstNBoonRarity" },
                 label = "Improve N Boon Rarity to Epic",
                 min = 0,
                 max = 15,
                 step = 1,
-                panel = { column = "content", line = 5 },
             },
             {
                 type = "text",
                 text = "(Improve the rarity of offered boons unless specifically forced by config.)",
                 color = uiData.MUTED_TEXT_COLOR,
-                panel = { column = "content", line = 6 },
-            },
-            {
-                type = "separator",
-                panel = { column = "content", line = 7 },
             },
             {
                 type = "confirmButton",
@@ -506,7 +507,6 @@ function uiData.GetSettingsPanelNode()
                         internal.RecalculateBannedCounts(uiState)
                     end
                 end,
-                panel = { column = "content", line = 8 },
             },
             {
                 type = "confirmButton",
@@ -516,7 +516,6 @@ function uiData.GetSettingsPanelNode()
                 onConfirm = function(uiState)
                     internal.ResetAllRarity(uiState)
                 end,
-                panel = { column = "content", line = 9 },
             },
         },
     }, "BoonBans settingsPanel")
@@ -525,6 +524,7 @@ function uiData.GetSettingsPanelNode()
 end
 
 function uiData.GetNpcRegionFilterPanelNode()
+    EnsureNodeCacheVersion()
     if nodeCache.npcRegionFilterPanel then
         return nodeCache.npcRegionFilterPanel
     end
@@ -535,24 +535,27 @@ function uiData.GetNpcRegionFilterPanelNode()
     end
 
     local node = PrepareNode({
-        type = "panel",
-        columns = NPC_FILTER_COLUMNS,
+        type = "hstack",
+        gap = 12,
         children = {
+            {
+                type = "text",
+                text = "Filter NPC Sources:",
+            },
             {
                 type = "radio",
                 binds = { value = uiData.NPC_VIEW_REGION_ALIAS },
-                label = "Filter NPC Sources:",
+                label = "",
                 values = { 1, 2, 3, 4 },
                 displayValues = displayValues,
                 geometry = {
                     slots = {
-                        { name = "option:1", line = 1, start = 140 },
-                        { name = "option:2", line = 1, start = 240 },
-                        { name = "option:3", line = 1, start = 340 },
-                        { name = "option:4", line = 1, start = 440 },
+                        { name = "option:1", line = 1, start = 0 },
+                        { name = "option:2", line = 1, start = 100 },
+                        { name = "option:3", line = 1, start = 200 },
+                        { name = "option:4", line = 1, start = 300 },
                     },
                 },
-                panel = { column = "content", line = 1 },
             },
         },
     }, "BoonBans npcRegionFilterPanel")
@@ -561,6 +564,7 @@ function uiData.GetNpcRegionFilterPanelNode()
 end
 
 function uiData.GetQuickResetNode()
+    EnsureNodeCacheVersion()
     if nodeCache.quickResetNode then
         return nodeCache.quickResetNode
     end
@@ -582,60 +586,113 @@ function uiData.GetQuickResetNode()
     return node
 end
 
-function uiData.GetMainTabsNode(uiState)
-    local children = {}
-    local tabStateByKey = {}
-    local signatureParts = {}
-    for _, tabName in ipairs(uiData.MAIN_TABS) do
-        if tabName == "Settings" then
-            local settingsNode = uiData.GetSettingsPanelNode()
-            settingsNode.tabLabel = tabName
-            settingsNode.tabId = tabName
-            children[#children + 1] = settingsNode
-            signatureParts[#signatureParts + 1] = tabName
-        else
-            local visibleRoots, totalCount, godPoolFiltering = uiData.GetVisibleRoots(tabName, uiState)
-            local selectedRoot = uiData.EnsureSelectedRoot(tabName, visibleRoots, uiState)
-            if selectedRoot and selectedRoot.id == "Hera" and uiData.activeBridalGlowRootId ~= selectedRoot.id then
-                uiData.InvalidateBridalGlowRootCache()
-                uiData.activeBridalGlowRootId = selectedRoot.id
-            end
-
-            local domainPanelNode = uiData.GetDomainPanelNode(tabName, visibleRoots, totalCount, godPoolFiltering, uiState)
-            if domainPanelNode then
-                local domainNode = domainPanelNode._domainTabsNode
-                if domainNode and selectedRoot then
-                    domainNode._activeTabKey = selectedRoot.id
-                end
-                domainPanelNode.tabLabel = tabName
-                domainPanelNode.tabId = tabName
-                children[#children + 1] = domainPanelNode
-                tabStateByKey[tabName] = {
-                    selectedRoot = selectedRoot,
-                    domainNode = domainNode,
-                }
-                local domainPanelCache = nodeCache.domainPanels[tabName]
-                signatureParts[#signatureParts + 1] = tabName
-                signatureParts[#signatureParts + 1] = domainPanelCache and domainPanelCache.signature or ""
-            end
+local function BuildMainDomainTabState(tabName, uiState)
+    local visibleRoots, totalCount, godPoolFiltering = uiData.GetVisibleRoots(tabName, uiState)
+    local selectedRoot = uiData.EnsureSelectedRoot(tabName, visibleRoots, uiState)
+    local domainPanelNode = uiData.GetDomainPanelNode(
+        tabName,
+        visibleRoots,
+        totalCount,
+        godPoolFiltering,
+        uiState)
+    if domainPanelNode then
+        local domainNode = domainPanelNode._domainTabsNode
+        if domainNode and selectedRoot then
+            domainNode._activeTabKey = selectedRoot.id
         end
+        domainPanelNode.tabLabel = tabName
+        domainPanelNode.tabId = tabName
     end
 
-    local signature = table.concat(signatureParts, "|")
+    return {
+        tabName = tabName,
+        panelNode = domainPanelNode,
+        selectedRoot = selectedRoot,
+        domainNode = domainPanelNode and domainPanelNode._domainTabsNode or nil,
+    }
+end
+
+function uiData.GetMainTabsNode(uiState)
+    EnsureNodeCacheVersion()
+    local olympiansState = BuildMainDomainTabState("Olympians", uiState)
+    local otherGodsState = BuildMainDomainTabState("Other Gods", uiState)
+    local hammersState = BuildMainDomainTabState("Hammers", uiState)
+    local npcsState = BuildMainDomainTabState("NPCs", uiState)
+
+    local settingsNode = uiData.GetSettingsPanelNode()
+    settingsNode.tabLabel = "Settings"
+    settingsNode.tabId = "Settings"
+    local signature = table.concat({
+        "Olympians",
+        nodeCache.domainPanels["Olympians"] and nodeCache.domainPanels["Olympians"].signature or "",
+        "Other Gods",
+        nodeCache.domainPanels["Other Gods"] and nodeCache.domainPanels["Other Gods"].signature or "",
+        "Hammers",
+        nodeCache.domainPanels["Hammers"] and nodeCache.domainPanels["Hammers"].signature or "",
+        "NPCs",
+        nodeCache.domainPanels["NPCs"] and nodeCache.domainPanels["NPCs"].signature or "",
+        "Settings",
+    }, "|")
+
     local cacheEntry, node = lib.getCachedPreparedNode(nodeCache.mainTabs, signature, function()
+        local children = {}
+        if olympiansState.panelNode then
+            children[#children + 1] = olympiansState.panelNode
+        end
+        if otherGodsState.panelNode then
+            children[#children + 1] = otherGodsState.panelNode
+        end
+        if hammersState.panelNode then
+            children[#children + 1] = hammersState.panelNode
+        end
+        if npcsState.panelNode then
+            children[#children + 1] = npcsState.panelNode
+        end
+        children[#children + 1] = settingsNode
         return PrepareNode({
-            type = "horizontalTabs",
+            type = "tabs",
             id = "BoonSubTabs",
             children = children,
         }, "BoonBans mainTabs")
-    end, {
-        reuseState = function(nextNode, previousNode)
-            if previousNode and previousNode._activeTabKey ~= nil then
-                nextNode._activeTabKey = previousNode._activeTabKey
-            end
-        end,
-    })
-    node._tabStateByKey = tabStateByKey
+    end)
+    if node._activeTabKey == nil then
+        if olympiansState.panelNode then
+            node._activeTabKey = "Olympians"
+        elseif otherGodsState.panelNode then
+            node._activeTabKey = "Other Gods"
+        elseif hammersState.panelNode then
+            node._activeTabKey = "Hammers"
+        elseif npcsState.panelNode then
+            node._activeTabKey = "NPCs"
+        else
+            node._activeTabKey = "Settings"
+        end
+    end
+    node._tabStateByKey = {}
+    if olympiansState.panelNode then
+        node._tabStateByKey["Olympians"] = {
+            selectedRoot = olympiansState.selectedRoot,
+            domainNode = olympiansState.domainNode,
+        }
+    end
+    if otherGodsState.panelNode then
+        node._tabStateByKey["Other Gods"] = {
+            selectedRoot = otherGodsState.selectedRoot,
+            domainNode = otherGodsState.domainNode,
+        }
+    end
+    if hammersState.panelNode then
+        node._tabStateByKey["Hammers"] = {
+            selectedRoot = hammersState.selectedRoot,
+            domainNode = hammersState.domainNode,
+        }
+    end
+    if npcsState.panelNode then
+        node._tabStateByKey["NPCs"] = {
+            selectedRoot = npcsState.selectedRoot,
+            domainNode = npcsState.domainNode,
+        }
+    end
     nodeCache.mainTabs = cacheEntry
     return node
 end
@@ -655,6 +712,7 @@ local function BuildDomainPanelSignature(tabName, visibleRoots, totalCount, godP
 end
 
 function uiData.GetDomainPanelNode(tabName, visibleRoots, totalCount, godPoolFiltering, uiState)
+    EnsureNodeCacheVersion()
     if type(tabName) ~= "string" or tabName == "" then
         return nil
     end
@@ -664,18 +722,19 @@ function uiData.GetDomainPanelNode(tabName, visibleRoots, totalCount, godPoolFil
         local children = {}
         local domainNode = nil
 
-        if tabName == "NPCs" then
-            children[#children + 1] = uiData.GetNpcRegionFilterPanelNode()
-            children[#children + 1] = { type = "separator" }
-        end
-
         if tabName == "Olympians" and godPoolFiltering then
             children[#children + 1] = {
                 type = "text",
-                text = string.format("Showing %d/%d Olympians enabled in God Pool.", #visibleRoots, totalCount),
+                text = string.format(
+                    "Showing %d/%d Olympians enabled in God Pool.",
+                    #visibleRoots,
+                    totalCount),
                 color = uiData.MUTED_TEXT_COLOR,
             }
-            children[#children + 1] = { type = "separator" }
+        end
+
+        if tabName == "NPCs" then
+            children[#children + 1] = uiData.GetNpcRegionFilterPanelNode()
         end
 
         if #visibleRoots == 0 then
@@ -692,7 +751,8 @@ function uiData.GetDomainPanelNode(tabName, visibleRoots, totalCount, godPoolFil
         end
 
         local nextNode = PrepareNode({
-            type = "group",
+            type = "vstack",
+            gap = 8,
             children = children,
         }, "BoonBans domainPanel " .. tabName)
         nextNode._domainTabsNode = domainNode
@@ -703,36 +763,36 @@ function uiData.GetDomainPanelNode(tabName, visibleRoots, totalCount, godPoolFil
 end
 
 local function BuildRootDetailHeaderSpec(root, uiState)
-    local headerChildren = {
-        {
-            type = "text",
-            text = root.displayLabel,
-            color = uiData.GetSourceColor(root.primaryScopeKey),
-            panel = { column = "title", line = 1 },
-        },
+    local titleNode = {
+        type = "text",
+        text = root.displayLabel,
+        color = uiData.GetSourceColor(root.primaryScopeKey),
     }
 
     local headerSummary = uiData.GetRootHeaderSummary(root, uiState)
-    if type(headerSummary) == "string" and headerSummary ~= "" then
-        headerChildren[#headerChildren + 1] = {
-            type = "text",
-            text = headerSummary,
-            color = uiData.MUTED_TEXT_COLOR,
-            panel = { column = "summary", line = 1 },
-        }
+    if type(headerSummary) ~= "string" or headerSummary == "" then
+        return titleNode
     end
 
     return {
-        type = "panel",
-        columns = ROOT_DETAIL_HEADER_COLUMNS,
-        children = headerChildren,
+        type = "split",
+        orientation = "horizontal",
+        firstSize = 220,
+        gap = 12,
+        children = {
+            titleNode,
+            {
+                type = "text",
+                text = headerSummary,
+                color = uiData.MUTED_TEXT_COLOR,
+            },
+        },
     }
 end
 
 local function BuildRootDetailSpec(root, uiState)
     local children = {
         BuildRootDetailHeaderSpec(root, uiState),
-        { type = "separator" },
     }
 
     if root.isTiered or root.hasRarity then
@@ -742,7 +802,8 @@ local function BuildRootDetailSpec(root, uiState)
     end
 
     return {
-        type = "group",
+        type = "vstack",
+        gap = 8,
         tabLabel = uiData.GetSelectorLabel(root, uiState),
         tabId = root.id,
         tabLabelColor = uiData.GetSourceColor(root.primaryScopeKey),
@@ -751,6 +812,7 @@ local function BuildRootDetailSpec(root, uiState)
 end
 
 function uiData.GetDomainTabsNode(tabName, visibleRoots, uiState)
+    EnsureNodeCacheVersion()
     if type(tabName) ~= "string" or tabName == "" then
         return nil
     end
@@ -768,10 +830,11 @@ function uiData.GetDomainTabsNode(tabName, visibleRoots, uiState)
         end
 
         return PrepareNode({
-            type = "verticalTabs",
+            type = "tabs",
             id = "BoonBansDomain##" .. tabName,
+            orientation = "vertical",
             binds = { activeTab = uiData.GetSelectedRootAlias(tabName) },
-            sidebarWidth = 260,
+            navWidth = 260,
             children = children,
         }, "BoonBans domainTabs " .. tabName)
     end)
