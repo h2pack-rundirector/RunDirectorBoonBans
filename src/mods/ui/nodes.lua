@@ -16,7 +16,7 @@ internal.uiNodes = {
     quickResetNode = nil,
 }
 local nodeCache = internal.uiNodes
-local UI_NODE_CACHE_VERSION = "layout_v2_2"
+local UI_NODE_CACHE_VERSION = "layout_v2_3"
 
 local function EnsureNodeCacheVersion()
     if nodeCache._version == UI_NODE_CACHE_VERSION then
@@ -65,13 +65,8 @@ local function BuildRarityBadgeSpec(alias)
         step = 1,
         displayValues = uiData.RARITY_LABELS,
         valueColors = uiData.RARITY_COLORS,
-        geometry = {
-            slots = {
-                { name = "decrement", start = 0 },
-                { name = "value", start = 10, width = 100, align = "center" },
-                { name = "increment", start = 100 },
-            },
-        },
+        valueWidth = 100,
+        valueAlign = "center",
     }
 end
 
@@ -114,11 +109,7 @@ function uiData.GetRarityPanelNode(root)
                         {
                             type = "text",
                             text = row.name or row.key or row.alias,
-                            geometry = {
-                                slots = {
-                                    { name = "value", width = 300 },
-                                },
-                            },
+                            width = 300,
                         },
                         rarityNode,
                     },
@@ -204,11 +195,7 @@ local function BuildBanControlsPanelSpec(scopeKey)
                                         type = "inputText",
                                         binds = { value = uiData.BAN_FILTER_TEXT_ALIAS },
                                         label = "",
-                                        geometry = {
-                                            slots = {
-                                                { name = "control", width = 180 },
-                                            },
-                                        },
+                                        controlWidth = 180,
                                     },
                                     {
                                         type = "button",
@@ -226,13 +213,6 @@ local function BuildBanControlsPanelSpec(scopeKey)
                                 label = "",
                                 values = { "all", "checked", "unchecked" },
                                 displayValues = displayValues,
-                                geometry = {
-                                    slots = {
-                                        { name = "option:1", line = 1, start = 0 },
-                                        { name = "option:2", line = 1, start = 56 },
-                                        { name = "option:3", line = 1, start = 136 },
-                                    },
-                                },
                             },
                         },
                     },
@@ -403,11 +383,7 @@ function uiData.GetForcePanelNode(root)
                 multipleLabel = "Multiple",
                 displayValues = uiData.BuildPackedBanDisplayValues(scope.key),
                 valueColors = uiData.BuildPackedBanValueColors(scope.key),
-                geometry = {
-                    slots = {
-                        { name = "control", width = 200 },
-                    },
-                },
+                controlWidth = 200,
             }
             if root.hasRarity then
                 rowChildren[#rowChildren + 1] = {
@@ -548,14 +524,6 @@ function uiData.GetNpcRegionFilterPanelNode()
                 label = "",
                 values = { 1, 2, 3, 4 },
                 displayValues = displayValues,
-                geometry = {
-                    slots = {
-                        { name = "option:1", line = 1, start = 0 },
-                        { name = "option:2", line = 1, start = 100 },
-                        { name = "option:3", line = 1, start = 200 },
-                        { name = "option:4", line = 1, start = 300 },
-                    },
-                },
             },
         },
     }, "BoonBans npcRegionFilterPanel")
