@@ -58,13 +58,11 @@ public.definition = {
     name = "Boon Bans",
     tooltip = "Ban boon offerings, force rarity, and configure padding behavior.",
     default = dataDefaults.Enabled,
-    special = true,
     affectsRunData = false,
 }
 internal.definition = public.definition
 
 public.definition.storage = {}
-public.definition.ui = {}
 
 local function BuildDefinitionStorage()
     public.definition.storage = {
@@ -161,7 +159,7 @@ local function init()
         lib.mutation.apply(public.definition, store)
     end
 
-    internal.standaloneUi = lib.special.standaloneUI(
+    internal.standaloneUi = lib.host.standaloneUI(
         public.definition,
         store,
         store.uiState,
