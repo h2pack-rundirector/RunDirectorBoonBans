@@ -5,6 +5,7 @@ local HAMMER_ROOTS = {
     {
         id = "Staff",
         label = "Staff",
+        primaryScopeKey = "Staff",
         scopes = {
             { key = "Staff", label = "1st" },
             { key = "Staff2", label = "2nd" },
@@ -14,6 +15,7 @@ local HAMMER_ROOTS = {
     {
         id = "Dagger",
         label = "Blades",
+        primaryScopeKey = "Dagger",
         scopes = {
             { key = "Dagger", label = "1st" },
             { key = "Dagger2", label = "2nd" },
@@ -23,6 +25,7 @@ local HAMMER_ROOTS = {
     {
         id = "Axe",
         label = "Axe",
+        primaryScopeKey = "Axe",
         scopes = {
             { key = "Axe", label = "1st" },
             { key = "Axe2", label = "2nd" },
@@ -32,6 +35,7 @@ local HAMMER_ROOTS = {
     {
         id = "Torch",
         label = "Torch",
+        primaryScopeKey = "Torch",
         scopes = {
             { key = "Torch", label = "1st" },
             { key = "Torch2", label = "2nd" },
@@ -41,6 +45,7 @@ local HAMMER_ROOTS = {
     {
         id = "Lob",
         label = "Skull",
+        primaryScopeKey = "Lob",
         scopes = {
             { key = "Lob", label = "1st" },
             { key = "Lob2", label = "2nd" },
@@ -50,6 +55,7 @@ local HAMMER_ROOTS = {
     {
         id = "Suit",
         label = "Coat",
+        primaryScopeKey = "Suit",
         scopes = {
             { key = "Suit", label = "1st" },
             { key = "Suit2", label = "2nd" },
@@ -73,7 +79,7 @@ local function IsHammerCustomized(root, uiState)
 end
 
 local function IsHammerEquipped(root)
-    local equippedWeapon = uiData.cachedEquippedWeaponName or ""
+    local equippedWeapon = GetEquippedWeapon and (GetEquippedWeapon() or "") or ""
     return equippedWeapon ~= "" and equippedWeapon:find(root.id, 1, true) ~= nil
 end
 
@@ -127,10 +133,9 @@ local function DrawHammerForcePanel(ui, uiState, root)
 end
 
 local function DrawHammerBanPanel(ui, uiState, scope)
-    local banned, total = uiData.GetScopeSummary(scope.key, uiState)
-    lib.widgets.text(ui, string.format("%s Tier %d/%d banned", scope.label, banned, total), {
-        color = uiData.MUTED_TEXT_COLOR,
-    })
+    internal.DrawBanSearchControls(ui, uiState, scope.key)
+    ui.SameLine()
+    ui.SetCursorPosX(ui.GetCursorPosX() + 100)
 
     lib.widgets.button(ui, "Ban All", {
         id = "hammer_ban_all_" .. scope.key,
@@ -146,8 +151,6 @@ local function DrawHammerBanPanel(ui, uiState, scope)
         end,
     })
 
-    internal.DrawBanSearchControls(ui, uiState, scope.key)
-
     lib.widgets.separator(ui)
     internal.DrawFilteredPackedBanList(ui, uiState, scope.key)
 end
@@ -158,10 +161,11 @@ function internal.DrawHammersTab(ui, uiState)
         tabs[#tabs + 1] = {
             key = root.id,
             label = GetHammerNavLabel(root, uiState),
+            color = uiData.GetSourceColor(root.primaryScopeKey),
         }
     end
 
-    internal.uiLeanState.activeHammerRoot = lib.ui.verticalTabs(ui, {
+    internal.uiLeanState.activeHammerRoot = lib.nav.verticalTabs(ui, {
         id = "BoonBansHammersTabs",
         navWidth = 220,
         tabs = tabs,

@@ -16,15 +16,6 @@ local config = chalk.auto("config.lua")
 local PACK_ID = "run-director"
 RunDirectorBoonBans_Internal = RunDirectorBoonBans_Internal or {}
 local internal = RunDirectorBoonBans_Internal
-local BRIDAL_GLOW_TARGET_TEXT_ALIAS = "Ui_BridalGlowCurrentTargetText"
-
-local function GetBanSummaryAlias(scopeKey)
-    return "Ui_BanSummary_" .. tostring(scopeKey)
-end
-
-local function GetBanEmptyStateAlias(scopeKey)
-    return "Ui_BanEmptyState_" .. tostring(scopeKey)
-end
 
 local function BuildPackedStorageNode(item)
     local bits = internal.GetPackedStorageBits(item.key)
@@ -74,37 +65,11 @@ local function BuildDefinitionStorage()
         { type = "string", alias = "BridalGlowTargetBoon",            configKey = "BridalGlowTargetBoon",            maxLen = 128 },
         { type = "int",    alias = "NpcViewRegion",                   lifetime = "transient",                         default = 4, min = 1, max = 4 },
         { type = "string", alias = "BanFilterText",                   lifetime = "transient",                         default = "", maxLen = 128 },
-        { type = "string", alias = "BanFilterMode",                   lifetime = "transient",                         default = "all", maxLen = 16 },
         { type = "string", alias = "SelectedRoot_Olympians",          lifetime = "transient",                         default = "", maxLen = 64 },
         { type = "string", alias = "SelectedRoot_Other Gods",         lifetime = "transient",                         default = "", maxLen = 64 },
         { type = "string", alias = "SelectedRoot_Hammers",            lifetime = "transient",                         default = "", maxLen = 64 },
         { type = "string", alias = "SelectedRoot_NPCs",               lifetime = "transient",                         default = "", maxLen = 64 },
-        { type = "string", alias = BRIDAL_GLOW_TARGET_TEXT_ALIAS,     lifetime = "transient",                         default = "Current Target: Random", maxLen = 256 },
     }
-
-    local scopeKeys = {}
-    for scopeKey, entry in pairs(internal.godInfo or {}) do
-        if type(scopeKey) == "string" and type(entry) == "table" and type(entry.boons) == "table" then
-            scopeKeys[#scopeKeys + 1] = scopeKey
-        end
-    end
-    table.sort(scopeKeys)
-    for _, scopeKey in ipairs(scopeKeys) do
-        public.definition.storage[#public.definition.storage + 1] = {
-            type = "string",
-            alias = GetBanSummaryAlias(scopeKey),
-            lifetime = "transient",
-            default = "",
-            maxLen = 64,
-        }
-        public.definition.storage[#public.definition.storage + 1] = {
-            type = "string",
-            alias = GetBanEmptyStateAlias(scopeKey),
-            lifetime = "transient",
-            default = "",
-            maxLen = 128,
-        }
-    end
 
     local packedKeys = {}
     for key, value in pairs(config) do
@@ -133,10 +98,6 @@ end
 local function SyncPublicExports()
     public.DrawTab = internal.DrawTab
     public.DrawQuickContent = internal.DrawQuickContent
-    public.BeforeDrawTab = internal.BeforeDrawTab
-    public.AfterDrawTab = internal.AfterDrawTab
-    public.BeforeDrawQuickContent = internal.BeforeDrawQuickContent
-    public.AfterDrawQuickContent = internal.AfterDrawQuickContent
 end
 
 local function registerHooks()
@@ -145,7 +106,7 @@ local function registerHooks()
     import("mods/runtime_state.lua")
     import("mods/npc_logic.lua")
     import("mods/loot_logic.lua")
-    import("mods/ui_lean.lua")
+    import("mods/ui/ui_lean.lua")
     SyncPublicExports()
 end
 
@@ -169,12 +130,6 @@ local function init()
             end,
             getDrawTab = function()
                 return public.DrawTab
-            end,
-            getBeforeDrawTab = function()
-                return internal.BeforeDrawTab
-            end,
-            getAfterDrawTab = function()
-                return internal.AfterDrawTab
             end,
         }
     )

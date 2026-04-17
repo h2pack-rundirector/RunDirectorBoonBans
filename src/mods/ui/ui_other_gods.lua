@@ -147,15 +147,9 @@ local function DrawForcePanel(ui, uiState, root)
 end
 
 local function DrawBanPanel(ui, uiState, root, scope)
-    local banned, total = uiData.GetScopeSummary(scope.key, uiState)
-    lib.widgets.text(ui, string.format("%s %d/%d banned", scope.label, banned, total), {
-        color = uiData.MUTED_TEXT_COLOR,
-    })
-
-    if #root.scopes == 1 then
-        ui.Spacing()
-        DrawForceRow(ui, uiState, scope)
-    end
+    internal.DrawBanSearchControls(ui, uiState, scope.key)
+    ui.SameLine()
+    ui.SetCursorPosX(ui.GetCursorPosX() + 100)
 
     lib.widgets.button(ui, "Ban All", {
         id = "other_gods_ban_all_" .. scope.key,
@@ -171,15 +165,11 @@ local function DrawBanPanel(ui, uiState, root, scope)
         end,
     })
 
-    internal.DrawBanSearchControls(ui, uiState, scope.key)
-
     lib.widgets.separator(ui)
     internal.DrawFilteredPackedBanList(ui, uiState, scope.key)
 end
 
 local function DrawRarityPanel(ui, uiState, root)
-    lib.widgets.text(ui, "Rarity")
-    lib.widgets.separator(ui)
     for _, boon in ipairs(uiData.GetScopeBoons(root.primaryScopeKey)) do
         if uiData.IsRarityEligibleBoon(boon) then
             local rarityAlias = internal.GetRarityAlias(root.primaryScopeKey, boon.Key)
@@ -210,7 +200,7 @@ function internal.DrawOtherGodsTab(ui, uiState)
         }
     end
 
-    internal.uiLeanState.activeOtherGodRoot = lib.ui.verticalTabs(ui, {
+    internal.uiLeanState.activeOtherGodRoot = lib.nav.verticalTabs(ui, {
         id = "BoonBansOtherGodsTabs",
         navWidth = 260,
         tabs = tabs,

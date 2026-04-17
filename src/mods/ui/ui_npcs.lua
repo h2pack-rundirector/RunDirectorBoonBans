@@ -78,8 +78,6 @@ local function DrawRegionFilter(ui, uiState)
 end
 
 local function DrawForcePanel(ui, uiState, root)
-    lib.widgets.text(ui, "Force")
-    lib.widgets.separator(ui)
     ui.AlignTextToFramePadding()
     ui.Text("Force 1")
     ui.SameLine()
@@ -96,13 +94,9 @@ local function DrawForcePanel(ui, uiState, root)
 end
 
 local function DrawBanPanel(ui, uiState, root)
-    local banned, total = uiData.GetScopeSummary(root.primaryScopeKey, uiState)
-    lib.widgets.text(ui, string.format("%d/%d banned", banned, total), {
-        color = uiData.MUTED_TEXT_COLOR,
-    })
-
-    ui.Spacing()
-    DrawForcePanel(ui, uiState, root)
+    internal.DrawBanSearchControls(ui, uiState, root.primaryScopeKey)
+    ui.SameLine()
+    ui.SetCursorPosX(ui.GetCursorPosX() + 100)
 
     lib.widgets.button(ui, "Ban All", {
         id = "npcs_ban_all_" .. root.primaryScopeKey,
@@ -118,15 +112,11 @@ local function DrawBanPanel(ui, uiState, root)
         end,
     })
 
-    internal.DrawBanSearchControls(ui, uiState, root.primaryScopeKey)
-
     lib.widgets.separator(ui)
     internal.DrawFilteredPackedBanList(ui, uiState, root.primaryScopeKey)
 end
 
 local function DrawRarityPanel(ui, uiState, root)
-    lib.widgets.text(ui, "Rarity")
-    lib.widgets.separator(ui)
     for _, boon in ipairs(uiData.GetScopeBoons(root.primaryScopeKey)) do
         if uiData.IsRarityEligibleBoon(boon) then
             local rarityAlias = internal.GetRarityAlias(root.primaryScopeKey, boon.Key)
@@ -169,7 +159,7 @@ function internal.DrawNpcsTab(ui, uiState)
         }
     end
 
-    internal.uiLeanState.activeNpcRoot = lib.ui.verticalTabs(ui, {
+    internal.uiLeanState.activeNpcRoot = lib.nav.verticalTabs(ui, {
         id = "BoonBansNpcsTabs",
         navWidth = 260,
         tabs = tabs,

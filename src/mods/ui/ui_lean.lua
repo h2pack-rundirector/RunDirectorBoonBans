@@ -3,13 +3,11 @@ local internal = RunDirectorBoonBans_Internal
 internal.ui = internal.ui or {}
 local uiData = internal.ui
 
-import("mods/ui/shared.lua")
-import("mods/ui/roots.lua")
-import("mods/ui/views.lua")
-import("mods/ui_olympians.lua")
-import("mods/ui_hammers.lua")
-import("mods/ui_npcs.lua")
-import("mods/ui_other_gods.lua")
+import("mods/ui/ui_shared.lua")
+import("mods/ui/ui_olympians.lua")
+import("mods/ui/ui_hammers.lua")
+import("mods/ui/ui_npcs.lua")
+import("mods/ui/ui_other_gods.lua")
 
 function internal.DrawBanSearchControls(ui, uiState, idSuffix)
     idSuffix = tostring(idSuffix or "")
@@ -76,7 +74,6 @@ local function DrawSettingsTab(ui, uiState)
     ui.Spacing()
     lib.widgets.confirmButton(ui, "boon_bans_reset_all_bans", "RESET ALL BANS (Global)", {
         confirmLabel = "Confirm RESET ALL BANS",
-        timeoutSeconds = uiData.CONFIRM_TIMEOUT,
         onConfirm = function()
             local bansChanged = internal.ResetAllBans(uiState)
             if bansChanged then
@@ -86,15 +83,10 @@ local function DrawSettingsTab(ui, uiState)
     })
     lib.widgets.confirmButton(ui, "boon_bans_reset_all_rarity", "RESET ALL RARITY (Global)", {
         confirmLabel = "Confirm RESET ALL RARITY",
-        timeoutSeconds = uiData.CONFIRM_TIMEOUT,
         onConfirm = function()
             internal.ResetAllRarity(uiState)
         end,
     })
-end
-
-function internal.BeforeDrawTab(_, uiState)
-    uiData.RefreshFrameState(uiState)
 end
 
 function internal.DrawTab(ui, uiState)
@@ -131,23 +123,16 @@ function internal.DrawTab(ui, uiState)
     return false
 end
 
-function internal.AfterDrawTab()
-end
-
 function internal.DrawQuickContent(ui, uiState)
-    local totalBans = internal.GetTotalBansConfigured()
-    local customizedRoots = uiData.GetCustomizedRootCount(uiState)
-    ui.Text("Boon Bans")
-    ui.Text(string.format("%d total bans configured", totalBans))
-    ui.Text(string.format("%d roots customized", customizedRoots))
-
     lib.widgets.checkbox(ui, uiState, "EnablePadding", {
         label = "Padding Enabled",
     })
 
+    ui.SameLine()
+    ui.SetCursorPosX(ui.GetCursorPosX() + 50)
+    
     lib.widgets.confirmButton(ui, "boon_bans_quick_reset_all", "Reset All", {
         confirmLabel = "Confirm Reset All",
-        timeoutSeconds = uiData.CONFIRM_TIMEOUT,
         onConfirm = function()
             local bansChanged = internal.ResetAllBans(uiState)
             internal.ResetAllRarity(uiState)

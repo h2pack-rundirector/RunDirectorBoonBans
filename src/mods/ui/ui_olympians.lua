@@ -97,10 +97,9 @@ local function DrawForcePanel(ui, uiState, root)
 end
 
 local function DrawBanPanel(ui, uiState, scope)
-    local banned, total = uiData.GetScopeSummary(scope.key, uiState)
-    lib.widgets.text(ui, string.format("%s Tier %d/%d banned", scope.label, banned, total), {
-        color = uiData.MUTED_TEXT_COLOR,
-    })
+    internal.DrawBanSearchControls(ui, uiState, scope.key)
+    ui.SameLine()
+    ui.SetCursorPosX(ui.GetCursorPosX() + 100)
 
     lib.widgets.button(ui, "Ban All", {
         id = "olympians_ban_all_" .. scope.key,
@@ -116,15 +115,11 @@ local function DrawBanPanel(ui, uiState, scope)
         end,
     })
 
-    internal.DrawBanSearchControls(ui, uiState, scope.key)
-
     lib.widgets.separator(ui)
     internal.DrawFilteredPackedBanList(ui, uiState, scope.key)
 end
 
 local function DrawRarityPanel(ui, uiState, root)
-    lib.widgets.text(ui, "Rarity")
-    lib.widgets.separator(ui)
     for _, boon in ipairs(uiData.GetScopeBoons(root.primaryScopeKey)) do
         if uiData.IsRarityEligibleBoon(boon) then
             local rarityAlias = internal.GetRarityAlias(root.primaryScopeKey, boon.Key)
@@ -287,7 +282,7 @@ function internal.DrawOlympiansTab(ui, uiState)
         }
     end
 
-    internal.uiLeanState.activeOlympianRoot = lib.ui.verticalTabs(ui, {
+    internal.uiLeanState.activeOlympianRoot = lib.nav.verticalTabs(ui, {
         id = "BoonBansOlympiansTabs",
         navWidth = 260,
         tabs = tabs,
