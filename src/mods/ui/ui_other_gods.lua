@@ -146,7 +146,7 @@ local function DrawForcePanel(ui, uiState, root)
     end
 end
 
-local function DrawBanPanel(ui, uiState, root, scope)
+local function DrawBanPanel(ui, uiState, _, scope)
     internal.DrawBanSearchControls(ui, uiState, scope.key)
     ui.SameLine()
     ui.SetCursorPosX(ui.GetCursorPosX() + 100)

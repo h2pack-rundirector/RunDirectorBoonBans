@@ -205,7 +205,6 @@ function uiData.GetVisibleBanCount(scopeKey, uiState)
         return 0
     end
 
-    local currentBans = internal.GetBanConfig(scopeKey, uiState) or 0
     local filterText = tostring(uiState and uiState.view and uiState.view[uiData.BAN_FILTER_TEXT_ALIAS] or ""):lower()
     local visibleCount = 0
 

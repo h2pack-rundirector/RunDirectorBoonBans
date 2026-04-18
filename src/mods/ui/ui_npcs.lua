@@ -77,22 +77,6 @@ local function DrawRegionFilter(ui, uiState)
     })
 end
 
-local function DrawForcePanel(ui, uiState, root)
-    ui.AlignTextToFramePadding()
-    ui.Text("Force 1")
-    ui.SameLine()
-    ui.SetCursorPosX(80)
-    lib.widgets.packedDropdown(ui, uiState, internal.GetBanRootAlias(root.primaryScopeKey), store, {
-        label = "",
-        selectionMode = "singleRemaining",
-        noneLabel = "None",
-        multipleLabel = "Multiple",
-        displayValues = uiData.BuildPackedBanDisplayValues(root.primaryScopeKey),
-        valueColors = uiData.BuildPackedBanValueColors(root.primaryScopeKey),
-        controlWidth = 240,
-    })
-end
-
 local function DrawBanPanel(ui, uiState, root)
     internal.DrawBanSearchControls(ui, uiState, root.primaryScopeKey)
     ui.SameLine()

@@ -135,7 +135,7 @@ function internal.DrawQuickContent(ui, uiState)
     lib.widgets.checkbox(ui, uiState, "EnablePadding", {
         label = "Padding Enabled",
     })
-  
+
     lib.widgets.confirmButton(ui, "boon_bans_quick_reset_all", "Reset To Default", {
         confirmLabel = "Confirm Reset All",
         onConfirm = function()

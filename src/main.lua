@@ -125,9 +125,6 @@ local function init()
         store,
         store.uiState,
         {
-            getDrawQuickContent = function()
-                return public.DrawQuickContent
-            end,
             getDrawTab = function()
                 return public.DrawTab
             end,
