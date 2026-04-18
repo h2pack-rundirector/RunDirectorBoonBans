@@ -45,6 +45,14 @@ function internal.DrawFilteredPackedBanList(ui, uiState, scopeKey, opts)
     end
 end
 
+function internal.ResetAllControls(uiState)
+    local bansChanged = internal.ResetAllBans(uiState)
+    internal.ResetAllRarity(uiState)
+    if bansChanged then
+        internal.RecalculateBannedCounts(uiState)
+    end
+end
+
 local function DrawSettingsTab(ui, uiState)
     lib.widgets.checkbox(ui, uiState, "EnablePadding", {
         label = "Enable Padding",
@@ -127,18 +135,11 @@ function internal.DrawQuickContent(ui, uiState)
     lib.widgets.checkbox(ui, uiState, "EnablePadding", {
         label = "Padding Enabled",
     })
-
-    ui.SameLine()
-    ui.SetCursorPosX(ui.GetCursorPosX() + 50)
-    
-    lib.widgets.confirmButton(ui, "boon_bans_quick_reset_all", "Reset All", {
+  
+    lib.widgets.confirmButton(ui, "boon_bans_quick_reset_all", "Reset To Default", {
         confirmLabel = "Confirm Reset All",
         onConfirm = function()
-            local bansChanged = internal.ResetAllBans(uiState)
-            internal.ResetAllRarity(uiState)
-            if bansChanged then
-                internal.RecalculateBannedCounts(uiState)
-            end
+            internal.ResetAllControls(uiState)
         end,
     })
 end
