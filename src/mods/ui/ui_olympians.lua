@@ -79,7 +79,7 @@ local function DrawForceRow(ui, session, scope)
     ui.SetCursorPosX(80)
     lib.widgets.packedDropdown(ui, session, bindAlias, internal.store, {
         label = "",
-        selectionMode = "singleRemaining",
+        selectionMode = "singleDisabled",
         noneLabel = "None",
         multipleLabel = "Multiple",
         displayValues = uiData.BuildPackedBanDisplayValues(scope.key),
