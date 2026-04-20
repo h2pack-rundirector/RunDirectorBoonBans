@@ -8,13 +8,23 @@ game = rom.game
 modutil = mods["SGG_Modding-ModUtil"]
 local chalk = mods["SGG_Modding-Chalk"]
 local reload = mods["SGG_Modding-ReLoad"]
+---@type AdamantModpackLib
 lib = mods["adamant-ModpackLib"]
 
 local dataDefaults = import("config.lua")
 local config = chalk.auto("config.lua")
 
 local PACK_ID = "run-director"
+---@class RunDirectorBoonBansInternal
+---@field definition ModuleDefinition|nil
+---@field store ManagedStore|nil
+---@field standaloneUi StandaloneRuntime|nil
+---@field BuildDefinitionStorage fun(config: table)|nil
+---@field RegisterHooks fun()|nil
+---@field DrawTab fun(imgui: table, session: AuthorSession)|nil
+---@field DrawQuickContent fun(imgui: table, session: AuthorSession)|nil
 RunDirectorBoonBans_Internal = RunDirectorBoonBans_Internal or {}
+---@type RunDirectorBoonBansInternal
 local internal = RunDirectorBoonBans_Internal
 
 public.definition = {
