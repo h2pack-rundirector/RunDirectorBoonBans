@@ -76,7 +76,6 @@ local function init()
         drawTab = internal.DrawTab,
         drawQuickContent = internal.DrawQuickContent,
     })
-    lib.finalizeModuleHost(public.host)
     internal.standaloneUi = lib.standaloneHost(public.host)
 end
 
