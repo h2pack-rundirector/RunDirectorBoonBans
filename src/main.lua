@@ -27,7 +27,6 @@ RunDirectorBoonBans_Internal = RunDirectorBoonBans_Internal or {}
 ---@type RunDirectorBoonBansInternal
 local internal = RunDirectorBoonBans_Internal
 
-public.host = nil
 local store
 local session
 internal.standaloneUi = nil
@@ -67,7 +66,7 @@ local function init()
 
     store, session = lib.createStore(config, definition)
     internal.store = store
-    public.host = lib.createModuleHost({
+    lib.createModuleHost({
         definition = definition,
         store = store,
         session = session,
@@ -76,7 +75,7 @@ local function init()
         drawTab = internal.DrawTab,
         drawQuickContent = internal.DrawQuickContent,
     })
-    internal.standaloneUi = lib.standaloneHost(public.host)
+    internal.standaloneUi = lib.standaloneHost()
 end
 
 local loader = reload.auto_single()
