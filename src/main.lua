@@ -17,6 +17,7 @@ local config = chalk.auto("config.lua")
 
 local PACK_ID = "run-director"
 local MODULE_ID = "BoonBans"
+local PLUGIN_GUID = _PLUGIN.guid
 ---@class RunDirectorBoonBansInternal
 ---@field store ManagedStore|nil
 ---@field standaloneUi StandaloneRuntime|nil
@@ -64,6 +65,7 @@ local function init()
     local store, session = lib.createStore(config, definition)
     internal.store = store
     lib.createModuleHost({
+        pluginGuid = PLUGIN_GUID,
         definition = definition,
         store = store,
         session = session,
@@ -72,7 +74,7 @@ local function init()
         drawTab = internal.DrawTab,
         drawQuickContent = internal.DrawQuickContent,
     })
-    internal.standaloneUi = lib.standaloneHost()
+    internal.standaloneUi = lib.standaloneHost(PLUGIN_GUID)
 end
 
 local loader = reload.auto_single()
