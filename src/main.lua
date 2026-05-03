@@ -57,7 +57,7 @@ local function init()
         modpack = PACK_ID,
         id = MODULE_ID,
         name = "Boon Bans",
-        tooltip = "Ban boon offerings, force rarity, and configure padding behavior.",
+        tooltip = "Ban boon offerings and force rarity behavior.",
         affectsRunData = false,
         storage = internal.BuildStorage(dataDefaults),
     })

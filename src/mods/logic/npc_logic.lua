@@ -113,30 +113,7 @@ local function wrapNPCChoice(funcName)
                 end
             end
 
-            if #allowed > 0 and (internal.store.read("EnablePadding") or funcName == "CirceBlessingChoice") then
-                if #allowed < GetTotalLootChoices() then
-                    local pool = {}
-                    for _, bannedOption in ipairs(banned) do
-                        t_insert(pool, bannedOption)
-                    end
-                    local seen = {}
-                    for _, allowedOption in ipairs(allowed) do
-                        seen[allowedOption.ItemName] = true
-                    end
-
-                    while #allowed < GetTotalLootChoices() and #pool > 0 do
-                        local idx = math.random(1, #pool)
-                        local pick = pool[idx]
-                        if pick and not seen[pick.ItemName] then
-                            t_insert(allowed, pick)
-                            seen[pick.ItemName] = true
-                        end
-                        pool[idx] = pool[#pool]
-                        pool[#pool] = nil
-                    end
-                end
-                args.UpgradeOptions = allowed
-            elseif #allowed > 0 then
+            if #allowed > 0 then
                 args.UpgradeOptions = allowed
             end
 
@@ -178,23 +155,6 @@ lib.hooks.Wrap(internal, "GetEligibleSpells", function(base, screen, args)
 
     if #allowed == 0 then return eligible end
 
-    if #allowed < GetTotalLootChoices() and internal.store.read("EnablePadding") then
-        local pool = { table.unpack(banned) }
-        local seen = {}
-        for _, allowedSpell in ipairs(allowed) do
-            seen[allowedSpell] = true
-        end
-        while #allowed < GetTotalLootChoices() and #pool > 0 do
-            local idx = math.random(1, #pool)
-            local pick = pool[idx]
-            if pick and not seen[pick] then
-                t_insert(allowed, pick)
-                seen[pick] = true
-            end
-            pool[idx] = pool[#pool]
-            pool[#pool] = nil
-        end
-    end
     return allowed
 end)
 

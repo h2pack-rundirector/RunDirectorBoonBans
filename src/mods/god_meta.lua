@@ -295,7 +295,7 @@ for _, def in ipairs(baseWeapons) do
         uiGroup = GROUP_HAMMERS,
         showPackedValueColors = false,
         tier = 1,
-        maxTiers = tiers -- Save the structural constant for logic padding
+        maxTiers = tiers
     })
 
     for i = 2, tiers do

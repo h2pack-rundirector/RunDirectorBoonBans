@@ -54,25 +54,6 @@ function internal.ResetAllControls(session)
 end
 
 local function DrawSettingsTab(ui, session)
-    lib.widgets.checkbox(ui, session, "EnablePadding", {
-        label = "Enable Padding",
-    })
-
-    if session.view.EnablePadding == true then
-        lib.widgets.dropdown(ui, session, "Padding_PrioritizeCoreForFirstN", {
-            label = "Prioritize Core Boons for First Picks",
-            values = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 },
-            controlWidth = 60,
-        })
-        lib.widgets.checkbox(ui, session, "Padding_AvoidFutureAllowed", {
-            label = "Avoid 'Future Allowed' Items",
-        })
-        lib.widgets.checkbox(ui, session, "Padding_AllowDuos", {
-            label = "Allow Banned Duos/Legendaries",
-        })
-    end
-
-    ui.Spacing()
     lib.widgets.dropdown(ui, session, "ImproveFirstNBoonRarity", {
         label = "Force First N Boons to Be Epic",
         values = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 },
@@ -132,10 +113,6 @@ function internal.DrawTab(ui, session)
 end
 
 function internal.DrawQuickContent(ui, session)
-    lib.widgets.checkbox(ui, session, "EnablePadding", {
-        label = "Padding Enabled",
-    })
-
     lib.widgets.confirmButton(ui, "boon_bans_quick_reset_all", "Reset To Default", {
         confirmLabel = "Confirm Reset All",
         onConfirm = function()

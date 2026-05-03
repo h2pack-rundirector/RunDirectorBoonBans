@@ -2,11 +2,6 @@ return {
     Enabled = false,
     DebugMode = false,
 
-    EnablePadding = false,
-    Padding_PrioritizeCoreForFirstN = 1,
-    Padding_AvoidFutureAllowed = true,
-    Padding_AllowDuos = false,
-
     ImproveFirstNBoonRarity = 0,
     BridalGlowTargetBoon = "",
     ViewRegion = 4,

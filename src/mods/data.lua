@@ -28,10 +28,6 @@ end
 
 function internal.BuildStorage(config)
     local storage = {
-        { type = "bool",   alias = "EnablePadding",                   configKey = "EnablePadding" },
-        { type = "int",    alias = "Padding_PrioritizeCoreForFirstN", configKey = "Padding_PrioritizeCoreForFirstN", min = 0, max = 15 },
-        { type = "bool",   alias = "Padding_AvoidFutureAllowed",      configKey = "Padding_AvoidFutureAllowed" },
-        { type = "bool",   alias = "Padding_AllowDuos",               configKey = "Padding_AllowDuos" },
         { type = "int",    alias = "ImproveFirstNBoonRarity",         configKey = "ImproveFirstNBoonRarity",         min = 0, max = 15 },
         { type = "string", alias = "BridalGlowTargetBoon",            configKey = "BridalGlowTargetBoon",            maxLen = 128 },
         { type = "int",    alias = "NpcViewRegion",                   lifetime = "transient",                         default = 4, min = 1, max = 4 },

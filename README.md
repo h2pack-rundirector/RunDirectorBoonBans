@@ -26,8 +26,6 @@ Within those scopes, the module can:
 
 It also includes run-level settings for:
 
-- Padding
-  Fill behavior when bans would otherwise leave a source short on valid picks.
 - Improve First N Boon Rarity
   Forces the first several boon offers to roll at higher rarity.
 - Bridal Glow target selection

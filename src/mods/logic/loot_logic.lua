@@ -21,15 +21,7 @@ end
 local isKeepsakeOffering = false
 local skipIsTraitEligible = false
 
-local function ShuffleTable(t)
-    for i = #t, 2, -1 do
-        local j = math.random(1, i)
-        t[i], t[j] = t[j], t[i]
-    end
-    return t
-end
-
-local function GeneratePriorityQueue(allowed, banned, godKey, currentTier, isHammer, priorityList, queueMaxSize, godBoonCount)
+local function GeneratePriorityQueue(allowed, isHammer, queueMaxSize)
     local queue = {}
     local duoLegendaryQueue = {}
 
@@ -48,83 +40,6 @@ local function GeneratePriorityQueue(allowed, banned, godKey, currentTier, isHam
             end
 
             if #queue < queueMaxSize then
-                table.insert(queue, pending)
-            end
-        end
-    end
-
-    if internal.store.read("EnablePadding") and #banned > 0 then
-        -- Prioritize core boons (PriorityUpgrades) in padding for the first N god boons.
-        -- After N boons have been picked, padding is a flat shuffle.
-        local prioritizeN = internal.store.read("Padding_PrioritizeCoreForFirstN") or 0
-        local usePriority = (not isHammer) and (prioritizeN > 0) and (godBoonCount < prioritizeN)
-
-        local prioritySet = {}
-        if usePriority and priorityList then
-            for _, name in ipairs(priorityList) do
-                prioritySet[name] = true
-            end
-        end
-
-        local highPrioPool = {}
-        local lowPrioPool = {}
-
-        for _, pending in ipairs(banned) do
-            local pendingName = pending.ItemName or pending.Name or pending.TraitName
-            local isHighPrio = usePriority and pendingName and prioritySet[pendingName]
-
-            if isHighPrio then
-                table.insert(highPrioPool, pending)
-            else
-                table.insert(lowPrioPool, pending)
-            end
-        end
-
-        ShuffleTable(highPrioPool)
-        ShuffleTable(lowPrioPool)
-
-        -- Core boons go first, then the rest. No random bias — within the first N window
-        -- core boons always lead the padding pool, after N everything is flat.
-        local finalPool = {}
-        for _, item in ipairs(highPrioPool) do table.insert(finalPool, item) end
-        for _, item in ipairs(lowPrioPool) do table.insert(finalPool, item) end
-
-        local avoidFuture = (internal.store.read("Padding_AvoidFutureAllowed") ~= false)
-        local allowDuos = (internal.store.read("Padding_AllowDuos") == true)
-
-        for _, pending in ipairs(finalPool) do
-            local skipPadding = false
-
-            if not isHammer then
-                local pendingName = pending.ItemName or pending.Name or pending.TraitName
-
-                if not allowDuos then
-                    local trait = TraitData[pendingName]
-                    if trait and (trait.IsDuoBoon or (trait.RarityLevels and trait.RarityLevels.Legendary)) then
-                        skipPadding = true
-                    end
-                end
-
-                if avoidFuture and not skipPadding and pendingName and godKey then
-                    local info = internal.FindTraitInfo(pendingName, godKey)
-                    if info then
-                        local rootMeta = godMeta[godKey]
-                        local maxTiers = (rootMeta and rootMeta.maxTiers) or 1
-                        for tier = currentTier + 1, maxTiers do
-                            local futureKey = (tier == 1) and godKey or (godKey .. tostring(tier))
-                            if godMeta[futureKey] then
-                                local futureConfig = internal.GetBanConfig(futureKey)
-                                if band(futureConfig, info.mask) == 0 then
-                                    skipPadding = true
-                                    break
-                                end
-                            end
-                        end
-                    end
-                end
-            end
-
-            if not skipPadding and #queue < queueMaxSize then
                 table.insert(queue, pending)
             end
         end
@@ -193,17 +108,10 @@ lib.hooks.Wrap(internal, "GetEligibleUpgrades", function(base, upgradeOptions, l
         return fullList
     end
 
-    local godBoonCount = (internal.GetOrRecalcBoonCounts()[currentGodKey] or 0)
-
     local queue, duoLegendaryQueue = GeneratePriorityQueue(
         allowed,
-        banned,
-        currentGodKey,
-        targetTier,
         isHammer,
-        lootData.PriorityUpgrades,
-        GetTotalLootChoices(),
-        godBoonCount
+        GetTotalLootChoices()
     )
 
     if internal.store.read("DebugMode") then
@@ -281,7 +189,7 @@ lib.hooks.Wrap(internal, "SetTraitsOnLoot", function(base, lootData, args)
 
     -- Guarantee: if #allowed <= 2 and any allowed boon is absent from the offer (e.g. displaced
     -- by the vanilla replacement mechanic or failed the vanilla duo/legendary chance gate),
-    -- inject it by displacing a padding slot. Replacement slots (TraitToReplace) and other
+    -- inject it by displacing a non-allowed slot. Replacement slots (TraitToReplace) and other
     -- allowed boons are never displaced.
     if #allowed <= 2 and #allowed > 0 then
         -- Build a rarity map from the duo/legendary queue so injected items get correct rarity.
@@ -333,7 +241,7 @@ lib.hooks.Wrap(internal, "SetTraitsOnLoot", function(base, lootData, args)
                 inOffer[name] = true
                 Log("[Micro] Injected allowed boon '%s' into empty slot", name)
             else
-                -- Displace the last padding slot: not the protected replacement index, not an allowed boon.
+                -- Displace the last non-allowed slot: not the protected replacement index, not an allowed boon.
                 local displaceIdx = nil
                 for i = #lootData.UpgradeOptions, 1, -1 do
                     local item = lootData.UpgradeOptions[i]
@@ -346,7 +254,7 @@ lib.hooks.Wrap(internal, "SetTraitsOnLoot", function(base, lootData, args)
                 if displaceIdx then
                     lootData.UpgradeOptions[displaceIdx] = newOption
                     inOffer[name] = true
-                    Log("[Micro] Injected allowed boon '%s' into slot %d (displaced padding)", name, displaceIdx)
+                    Log("[Micro] Injected allowed boon '%s' into slot %d (displaced non-allowed option)", name, displaceIdx)
                 end
             end
         end
