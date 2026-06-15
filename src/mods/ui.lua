@@ -17,7 +17,10 @@ local module = {}
 
 local FIRST_N_RARITY_DROPDOWN_OPTS = {
     label = "Force First N Boons to Be Epic",
-    values = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 },
+    valueRange = {
+        min = 0,
+        max = 15,
+    },
     controlWidth = 60,
 }
 local ENABLE_PADDING_CHECKBOX_OPTS = {
@@ -25,7 +28,10 @@ local ENABLE_PADDING_CHECKBOX_OPTS = {
 }
 local PADDING_FIRST_N_DROPDOWN_OPTS = {
     label = "Prioritize Core Boons for First Picks",
-    values = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 },
+    valueRange = {
+        min = 0,
+        max = 10,
+    },
     controlWidth = 60,
 }
 local PADDING_AVOID_FUTURE_CHECKBOX_OPTS = {
